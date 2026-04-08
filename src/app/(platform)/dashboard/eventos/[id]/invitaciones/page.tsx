@@ -29,7 +29,18 @@ export default async function InvitacionesPage({ params }: Props) {
           Crea una invitación personalizada con IA para {event.celebrantName}
         </p>
       </div>
-      <VideoWizardClient eventId={id} event={{ celebrantName: event.celebrantName, celebrantAge: event.celebrantAge, type: event.type }} existingVideos={event.videoInvitations} />
+      <VideoWizardClient
+        eventId={id}
+        event={{
+          celebrantName: event.celebrantName,
+          celebrantAge: event.celebrantAge,
+          type: event.type,
+          eventDate: event.eventDate ?? null,
+          eventTime: event.eventTime ?? null,
+          venue: event.venue ?? null,
+        }}
+        existingVideos={event.videoInvitations}
+      />
     </div>
   );
 }
