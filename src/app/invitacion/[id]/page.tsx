@@ -2,11 +2,8 @@ import { db } from "@/db";
 import { videoInvitations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import dynamic from "next/dynamic";
 import type { InvitacionProps } from "@/remotion/InvitacionComposition";
-
-// Remotion Player solo en cliente (no SSR)
-const InvitacionPlayer = dynamic(() => import("@/components/InvitacionPlayer"), { ssr: false });
+import InvitacionPlayerWrapper from "./InvitacionPlayerWrapper";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -33,7 +30,7 @@ export default async function PublicInvitacionPage({ params }: Props) {
   return (
     <>
       <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-      <InvitacionPlayer inputProps={inputProps} variant="full" />
+      <InvitacionPlayerWrapper inputProps={inputProps} />
     </>
   );
 }
