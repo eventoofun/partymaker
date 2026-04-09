@@ -4,7 +4,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { LayoutDashboard, CalendarDays, Plus } from "lucide-react";
+import { Plus, LayoutDashboard, CalendarDays } from "lucide-react";
+import SidebarNav from "./SidebarNav";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -51,31 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </Link>
 
         {/* Nav links */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
-          {[
-            { href: "/dashboard", label: "Inicio", icon: <LayoutDashboard size={18} /> },
-            { href: "/dashboard/eventos", label: "Mis eventos", icon: <CalendarDays size={18} /> },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "10px 12px",
-                borderRadius: "var(--radius-md)",
-                color: "var(--neutral-400)",
-                textDecoration: "none",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                transition: "all 0.2s",
-              }}
-            >
-              {item.icon} {item.label}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav />
 
         {/* User */}
         <div style={{
