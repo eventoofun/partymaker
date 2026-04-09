@@ -11,21 +11,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!userId) redirect("/sign-in");
 
   return (
-    <div style={{ display: "flex", minHeight: "100dvh", background: "var(--surface-bg)" }}>
-      {/* ── SIDEBAR ── */}
-      <aside style={{
-        width: "260px",
-        flexShrink: 0,
-        background: "var(--surface-elevated)",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-        display: "flex",
-        flexDirection: "column",
-        padding: "24px 16px",
-        position: "sticky",
-        top: 0,
-        height: "100dvh",
-        overflowY: "auto",
-      }}>
+    <div className="dashboard-layout">
+      {/* ── SIDEBAR (desktop) ── */}
+      <aside className="dashboard-sidebar">
         {/* Logo */}
         <div style={{
           fontFamily: "var(--font-display)",
@@ -99,20 +87,59 @@ export default async function DashboardLayout({ children }: { children: React.Re
           gap: "12px",
         }}>
           <UserButton appearance={{
-            elements: {
-              avatarBox: { width: "36px", height: "36px" },
-            },
+            elements: { avatarBox: { width: "36px", height: "36px" } },
           }} />
-          <div style={{ fontSize: "0.8rem", color: "var(--neutral-500)" }}>
-            Mi cuenta
-          </div>
+          <div style={{ fontSize: "0.8rem", color: "var(--neutral-500)" }}>Mi cuenta</div>
         </div>
       </aside>
 
+      {/* ── MOBILE HEADER ── */}
+      <header className="dashboard-mobile-header">
+        <div style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 800,
+          fontSize: "1.2rem",
+          background: "var(--gradient-brand)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}>
+          Cumplefy ✨
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Link
+            href="/dashboard/eventos/nuevo"
+            style={{
+              display: "flex", alignItems: "center", gap: "5px",
+              background: "var(--gradient-brand)", color: "white",
+              textDecoration: "none",
+              padding: "8px 14px",
+              borderRadius: "var(--radius-md)",
+              fontWeight: 600, fontSize: "0.8rem",
+            }}
+          >
+            <Plus size={15} /> Nuevo
+          </Link>
+          <UserButton appearance={{ elements: { avatarBox: { width: "32px", height: "32px" } } }} />
+        </div>
+      </header>
+
       {/* ── MAIN ── */}
-      <main style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
+      <main className="dashboard-main">
         {children}
       </main>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="dashboard-mobile-nav">
+        <Link href="/dashboard">
+          <LayoutDashboard size={20} />
+          Inicio
+        </Link>
+        <Link href="/dashboard/eventos">
+          <CalendarDays size={20} />
+          Eventos
+        </Link>
+      </nav>
     </div>
   );
 }
