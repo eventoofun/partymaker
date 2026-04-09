@@ -102,7 +102,7 @@ export default function RsvpPage() {
         </p>
         {guest.eventDate && (
           <p style={{ color: "var(--neutral-500)", fontSize: "0.88rem", marginBottom: "32px" }}>
-            {new Date(guest.eventDate).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+            {new Date(guest.eventDate + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
             {guest.venue && ` · ${guest.venue}`}
           </p>
         )}

@@ -83,7 +83,7 @@ export default async function EventDetailPage({ params }: Props) {
               {event.eventDate && (
                 <span style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.85rem", color: "var(--neutral-400)" }}>
                   <Calendar size={13} />
-                  {new Date(event.eventDate).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                  {new Date(event.eventDate + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
                   {event.eventTime && ` · ${event.eventTime}`}
                 </span>
               )}
