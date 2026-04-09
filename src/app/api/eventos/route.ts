@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const schema = z.object({
   celebrantName: z.string().min(1),
-  celebrantAge: z.number().int().min(0).max(18).optional(),
+  celebrantAge: z.number().int().min(0).max(120).optional(),
   type: z.enum(["cumpleanos", "comunion", "bautizo", "navidad", "graduacion", "otro"]),
   eventDate: z.string().optional(),
   eventTime: z.string().optional(),
