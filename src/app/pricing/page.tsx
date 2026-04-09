@@ -22,7 +22,7 @@ const PRO_FEATURES = [
   "Invitación en vídeo con IA",
   "Estadísticas avanzadas",
   "Soporte prioritario",
-  "Sin marca de agua eventoo",
+  "Sin marca de agua Cumplefy",
 ];
 
 export default function PricingPage() {
@@ -31,7 +31,7 @@ export default function PricingPage() {
       {/* Nav */}
       <nav style={{ padding: "16px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Link href="/" style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.2rem", background: "var(--gradient-brand)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", textDecoration: "none" }}>
-          eventoo
+          Cumplefy ✨
         </Link>
         <Link href="/sign-in" className="btn btn--ghost" style={{ textDecoration: "none", fontSize: "0.85rem" }}>
           Iniciar sesión
@@ -133,7 +133,7 @@ export default function PricingPage() {
             {[
               {
                 q: "¿Cobráis comisión por los regalos?",
-                a: "Sí, eventoo aplica una comisión del 3% (mínimo €0,30) sobre los regalos colectivos. Los regalos físicos comprados en tiendas externas no tienen comisión.",
+                a: "Sí, Cumplefy aplica una comisión del 3% (mínimo €0,30) sobre los regalos colectivos. Los regalos físicos comprados en tiendas externas no tienen comisión.",
               },
               {
                 q: "¿Necesito tarjeta de crédito para el plan gratuito?",

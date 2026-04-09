@@ -54,7 +54,7 @@ export async function createContributionPaymentIntent(params: {
       ...metadata,
     },
     receipt_email: contributorEmail ?? undefined,
-    description: `Aportación regalo colectivo — eventoo.es/e/${eventSlug}`,
+    description: `Aportación regalo colectivo — cumplefy.com/e/${eventSlug}`,
   };
 
   // If organizer has Stripe Connect, route directly to their account

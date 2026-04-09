@@ -40,7 +40,7 @@ export const events = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    slug: text("slug").notNull(), // public URL: eventoo.es/e/mi-fiesta-2025
+    slug: text("slug").notNull(), // public URL: cumplefy.com/e/mi-fiesta-2025
     type: text("type", {
       enum: ["cumpleanos", "comunion", "bautizo", "navidad", "graduacion", "otro"],
     }).notNull(),

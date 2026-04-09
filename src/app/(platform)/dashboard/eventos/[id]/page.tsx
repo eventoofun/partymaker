@@ -4,8 +4,7 @@ import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Edit2, Share2 } from "lucide-react";
-import { absoluteUrl } from "@/lib/utils";
+import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2 } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -47,7 +46,7 @@ export default async function EventDetailPage({ params }: Props) {
 
   if (!event || event.userId !== userId) notFound();
 
-  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eventoo.es"}/e/${event.slug}`;
+  const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://cumplefy.com"}/e/${event.slug}`;
   const totalGuests = event.guests.length;
   const attending = event.guests.filter((g) => g.rsvpStatus === "attending").length;
   const totalItems = event.wishList?.items.length ?? 0;

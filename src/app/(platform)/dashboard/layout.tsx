@@ -38,7 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           padding: "8px 12px",
           marginBottom: "32px",
         }}>
-          eventoo
+          Cumplefy ✨
         </div>
 
         {/* Quick create button */}

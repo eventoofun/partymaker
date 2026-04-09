@@ -45,7 +45,7 @@ export default async function GraciasPage({ params }: Props) {
 
       <p style={{ color: "var(--neutral-600)", fontSize: "0.78rem" }}>
         Gestionado con{" "}
-        <Link href="/" style={{ color: "var(--brand-primary)", textDecoration: "none" }}>eventoo</Link>
+        <Link href="/" style={{ color: "var(--brand-primary)", textDecoration: "none" }}>Cumplefy</Link>
       </p>
     </div>
   );

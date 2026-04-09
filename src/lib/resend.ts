@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 export const resend = new Resend(process.env.RESEND_API_KEY!);
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "hola@eventoo.es";
+const FROM = process.env.RESEND_FROM_EMAIL ?? "hola@cumplefy.com";
 
 /** Send RSVP confirmation email to guest */
 export async function sendRsvpConfirmation(params: {
@@ -33,7 +33,7 @@ export async function sendRsvpConfirmation(params: {
             : `Hemos registrado que no podrás asistir a <strong style="color: white;">${eventName}</strong>. ¡Te echaremos de menos!`
           }
         </p>
-        <p style="color: #5a5a7a; font-size: 14px;">Con cariño, el equipo de eventoo.es</p>
+        <p style="color: #5a5a7a; font-size: 14px;">Con cariño, el equipo de cumplefy.com</p>
       </div>
     `,
   });
@@ -74,7 +74,7 @@ export async function sendContributionNotification(params: {
             <div style="background: linear-gradient(90deg, #ff3366, #8338ec); border-radius: 999px; height: 100%; width: ${collectedPercent}%;"></div>
           </div>
         </div>
-        <p style="color: #5a5a7a; font-size: 14px;">Gestiona tu evento en eventoo.es</p>
+        <p style="color: #5a5a7a; font-size: 14px;">Gestiona tu evento en cumplefy.com</p>
       </div>
     `,
   });

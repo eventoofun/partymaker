@@ -18,37 +18,39 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "eventoo — La lista de regalos inteligente para tu celebración",
-    template: "%s | eventoo",
+    default: "Cumplefy — La plataforma mágica para organizar celebraciones perfectas",
+    template: "%s | Cumplefy",
   },
   description:
-    "Crea la lista de regalos perfecta para cumpleaños, comuniones y celebraciones. Evita regalos duplicados y organiza aportaciones colectivas fácilmente.",
+    "Crea la lista de regalos perfecta, gestiona invitados, genera videoinvitaciones y organiza tu celebración en un solo lugar. Sin estrés, sin duplicados.",
   keywords: [
     "lista de regalos",
     "cumpleaños niños",
     "regalos colectivos",
-    "gestor de deseos",
+    "organizar fiesta",
+    "videoinvitaciones",
+    "gestión invitados",
     "comunión",
     "bautizo",
     "invitaciones digitales",
   ],
-  authors: [{ name: "eventoo" }],
-  creator: "eventoo",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://eventoo.es"),
+  authors: [{ name: "Cumplefy" }],
+  creator: "Cumplefy",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://cumplefy.com"),
   openGraph: {
     type: "website",
     locale: "es_ES",
-    url: "https://eventoo.es",
-    siteName: "eventoo",
-    title: "eventoo — La lista de regalos inteligente",
+    url: "https://cumplefy.com",
+    siteName: "Cumplefy",
+    title: "Cumplefy — La plataforma mágica para celebraciones perfectas",
     description:
-      "Crea la lista de regalos perfecta. Evita duplicados. Organiza aportaciones colectivas.",
+      "Organiza la celebración perfecta. Lista de regalos, videoinvitaciones, gestión de invitados y más.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "eventoo",
-    description: "La lista de regalos inteligente para celebraciones",
+    title: "Cumplefy",
+    description: "La plataforma mágica para organizar celebraciones perfectas",
     images: ["/og-image.png"],
   },
   robots: {

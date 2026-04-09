@@ -13,7 +13,7 @@ export async function GET() {
   if (!clerkUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eventoo.es"}/dashboard`;
+  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://cumplefy.com"}/dashboard`;
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),

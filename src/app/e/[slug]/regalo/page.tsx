@@ -361,7 +361,7 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
         )}
 
         <p style={{ textAlign: "center", color: "var(--neutral-600)", fontSize: "0.75rem", marginTop: "24px" }}>
-          Pago procesado de forma segura por Stripe. eventoo nunca almacena datos de tarjeta.
+          Pago procesado de forma segura por Stripe. Cumplefy nunca almacena datos de tarjeta.
         </p>
       </div>
     </div>

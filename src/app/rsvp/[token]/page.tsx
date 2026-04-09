@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, XCircle, HelpCircle, PartyPopper } from "lucide-react";
+import { CheckCircle, XCircle, HelpCircle } from "lucide-react";
 
 type RsvpStatus = "attending" | "not_attending" | "maybe";
 
@@ -61,7 +61,7 @@ export default function RsvpPage() {
         <XCircle size={48} style={{ color: "#ef4444" }} />
         <h2>Enlace no válido</h2>
         <p style={{ color: "var(--neutral-400)" }}>Este enlace de confirmación no existe o ha caducado.</p>
-        <Link href="/" className="btn btn--ghost" style={{ textDecoration: "none" }}>Ir a eventoo</Link>
+        <Link href="/" className="btn btn--ghost" style={{ textDecoration: "none" }}>Ir a Cumplefy</Link>
       </div>
     );
   }

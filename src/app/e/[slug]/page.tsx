@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const event = await getEvent(slug);
   if (!event) return {};
   return {
-    title: `Lista de regalos de ${event.celebrantName} | eventoo`,
+    title: `Lista de regalos de ${event.celebrantName} | Cumplefy`,
     description: `Elige un regalo para ${event.celebrantName}. Sin duplicados, sin sorpresas.`,
     openGraph: {
       title: `Lista de regalos de ${event.celebrantName}`,
@@ -91,7 +91,7 @@ export default async function PublicEventPage({ params }: Props) {
           backgroundClip: "text",
           textDecoration: "none",
         }}>
-          eventoo
+          Cumplefy ✨
         </Link>
       </nav>
 
@@ -247,7 +247,7 @@ export default async function PublicEventPage({ params }: Props) {
 
         <p style={{ textAlign: "center", color: "var(--neutral-600)", fontSize: "0.78rem", marginTop: "40px" }}>
           Lista gestionada con{" "}
-          <Link href="/" style={{ color: "var(--brand-primary)", textDecoration: "none" }}>eventoo</Link>
+          <Link href="/" style={{ color: "var(--brand-primary)", textDecoration: "none" }}>Cumplefy</Link>
         </p>
       </div>
     </div>
