@@ -174,7 +174,7 @@ export default async function EventDetailPage({ params }: Props) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {[
-              { done: true,           label: "Datos básicos",       sub: "Nombre, fecha y lugar",        href: null },
+              { done: true,           label: "Datos básicos",       sub: "Nombre, fecha y lugar",        href: `/dashboard/eventos/${id}/editar` },
               { done: totalItems > 0, label: "Lista de regalos",    sub: totalItems > 0 ? `${totalItems} ${totalItems === 1 ? "regalo" : "regalos"} añadidos` : "Añade regalos para tus invitados", href: `/dashboard/eventos/${id}/lista-deseos` },
               { done: totalGuests > 0,label: "Invitados",           sub: totalGuests > 0 ? `${totalGuests} ${totalGuests === 1 ? "invitado" : "invitados"}` : "Añade o invita a tus invitados",     href: `/dashboard/eventos/${id}/invitados` },
               { done: event.videoInvitations.length > 0, label: "Invitación en vídeo", sub: event.videoInvitations.length > 0 ? "Invitación creada ✓" : "Crea una invitación personalizada con IA", href: `/dashboard/eventos/${id}/invitaciones` },
@@ -185,7 +185,7 @@ export default async function EventDetailPage({ params }: Props) {
                 borderRadius: "var(--radius-md)",
                 background: item.done ? "rgba(6,255,165,0.06)" : "var(--surface-card)",
                 border: `1px solid ${item.done ? "rgba(6,255,165,0.15)" : "rgba(255,255,255,0.06)"}`,
-                opacity: item.done && !item.href ? 0.7 : 1,
+                opacity: 1,
               }}>
                 {item.done
                   ? <CheckCircle2 size={18} style={{ color: "#06ffa5", flexShrink: 0 }} />
@@ -195,17 +195,17 @@ export default async function EventDetailPage({ params }: Props) {
                   <div style={{ fontWeight: 600, fontSize: "0.87rem", color: item.done ? "var(--neutral-300)" : "white" }}>{item.label}</div>
                   <div style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginTop: "1px" }}>{item.sub}</div>
                 </div>
-                {!item.done && item.href && (
+                {item.href && (
                   <Link href={item.href} style={{
                     fontSize: "0.75rem", fontWeight: 700,
-                    color: "var(--brand-primary)",
+                    color: item.done ? "var(--neutral-500)" : "var(--brand-primary)",
                     textDecoration: "none",
                     whiteSpace: "nowrap",
                     padding: "4px 12px",
-                    border: "1px solid rgba(255,51,102,0.3)",
+                    border: `1px solid ${item.done ? "rgba(255,255,255,0.08)" : "rgba(255,51,102,0.3)"}`,
                     borderRadius: "var(--radius-sm)",
                   }}>
-                    Configurar →
+                    {item.done ? "Editar" : "Configurar →"}
                   </Link>
                 )}
               </div>
