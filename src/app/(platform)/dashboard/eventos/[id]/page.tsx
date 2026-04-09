@@ -4,7 +4,7 @@ import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2 } from "lucide-react";
+import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2, CheckCircle2, Circle } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -147,6 +147,64 @@ export default async function EventDetailPage({ params }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Setup checklist */}
+      {(totalItems === 0 || totalGuests === 0 || event.videoInvitations.length === 0) && (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(131,56,236,0.08) 0%, rgba(255,51,102,0.06) 100%)",
+          border: "1px solid rgba(131,56,236,0.2)",
+          borderRadius: "var(--radius-xl)",
+          padding: "24px",
+          marginBottom: "20px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+            <span style={{ fontSize: "1.4rem" }}>🧞</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>Completa tu celebración</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--neutral-500)" }}>El Genio te guía paso a paso</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[
+              { done: true,           label: "Datos básicos",       sub: "Nombre, fecha y lugar",        href: null },
+              { done: totalItems > 0, label: "Lista de regalos",    sub: totalItems > 0 ? `${totalItems} ${totalItems === 1 ? "regalo" : "regalos"} añadidos` : "Añade regalos para tus invitados", href: `/dashboard/eventos/${id}/lista-deseos` },
+              { done: totalGuests > 0,label: "Invitados",           sub: totalGuests > 0 ? `${totalGuests} ${totalGuests === 1 ? "invitado" : "invitados"}` : "Añade o invita a tus invitados",     href: `/dashboard/eventos/${id}/invitados` },
+              { done: event.videoInvitations.length > 0, label: "Invitación en vídeo", sub: event.videoInvitations.length > 0 ? "Invitación creada ✓" : "Crea una invitación personalizada con IA", href: `/dashboard/eventos/${id}/invitaciones` },
+            ].map((item) => (
+              <div key={item.label} style={{
+                display: "flex", alignItems: "center", gap: "12px",
+                padding: "12px 16px",
+                borderRadius: "var(--radius-md)",
+                background: item.done ? "rgba(6,255,165,0.06)" : "var(--surface-card)",
+                border: `1px solid ${item.done ? "rgba(6,255,165,0.15)" : "rgba(255,255,255,0.06)"}`,
+                opacity: item.done && !item.href ? 0.7 : 1,
+              }}>
+                {item.done
+                  ? <CheckCircle2 size={18} style={{ color: "#06ffa5", flexShrink: 0 }} />
+                  : <Circle size={18} style={{ color: "var(--neutral-600)", flexShrink: 0 }} />
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.87rem", color: item.done ? "var(--neutral-300)" : "white" }}>{item.label}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginTop: "1px" }}>{item.sub}</div>
+                </div>
+                {!item.done && item.href && (
+                  <Link href={item.href} style={{
+                    fontSize: "0.75rem", fontWeight: 700,
+                    color: "var(--brand-primary)",
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                    padding: "4px 12px",
+                    border: "1px solid rgba(255,51,102,0.3)",
+                    borderRadius: "var(--radius-sm)",
+                  }}>
+                    Configurar →
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Nav sections */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
