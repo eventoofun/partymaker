@@ -4,7 +4,7 @@ import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2, CheckCircle2, Circle } from "lucide-react";
+import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2, CheckCircle2, Circle, Edit2, Store } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -56,6 +56,7 @@ export default async function EventDetailPage({ params }: Props) {
     { href: `/dashboard/eventos/${id}/lista-deseos`, icon: Gift, label: "Lista de regalos", count: totalItems },
     { href: `/dashboard/eventos/${id}/invitados`, icon: Users, label: "Invitados", count: totalGuests },
     { href: `/dashboard/eventos/${id}/invitaciones`, icon: Video, label: "Invitación vídeo", count: event.videoInvitations.length },
+    { href: `/dashboard/eventos/${id}/proveedores`, icon: Store, label: "Proveedores", count: 0 },
   ];
 
   return (
@@ -96,6 +97,13 @@ export default async function EventDetailPage({ params }: Props) {
           </div>
 
           <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+            <Link
+              href={`/dashboard/eventos/${id}/editar`}
+              className="btn btn--ghost"
+              style={{ textDecoration: "none", fontSize: "0.82rem", padding: "8px 14px" }}
+            >
+              <Edit2 size={14} /> Editar
+            </Link>
             <a
               href={publicUrl}
               target="_blank"
@@ -236,11 +244,15 @@ export default async function EventDetailPage({ params }: Props) {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{nav.label}</div>
-              {nav.count > 0 && (
+              {nav.count > 0 ? (
                 <div style={{ fontSize: "0.78rem", color: "var(--neutral-500)", marginTop: "2px" }}>
                   {nav.count} {nav.count === 1 ? "elemento" : "elementos"}
                 </div>
-              )}
+              ) : nav.label === "Proveedores" ? (
+                <div style={{ fontSize: "0.78rem", color: "var(--neutral-500)", marginTop: "2px" }}>
+                  Catering, animación, decoración...
+                </div>
+              ) : null}
             </div>
             <div style={{ color: "var(--neutral-600)", fontSize: "1.2rem" }}>›</div>
           </Link>
