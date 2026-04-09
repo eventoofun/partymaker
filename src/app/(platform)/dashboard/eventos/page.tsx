@@ -30,8 +30,9 @@ export default async function EventosPage() {
     orderBy: (e, { desc }) => [desc(e.createdAt)],
   });
 
-  const upcoming = userEvents.filter(e => e.eventDate && new Date(e.eventDate) >= new Date());
-  const past = userEvents.filter(e => !e.eventDate || new Date(e.eventDate) < new Date());
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const upcoming = userEvents.filter(e => !e.eventDate || new Date(e.eventDate + "T12:00:00") >= today);
+  const past = userEvents.filter(e => e.eventDate && new Date(e.eventDate + "T12:00:00") < today);
 
   return (
     <div style={{ maxWidth: "760px" }}>
