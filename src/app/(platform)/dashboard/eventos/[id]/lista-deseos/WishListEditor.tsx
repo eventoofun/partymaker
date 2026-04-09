@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Link2, ExternalLink, Trash2, Check, Gift, Zap, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { Plus, Link2, ExternalLink, Trash2, Check, Gift, Zap, AlertTriangle, ArrowLeft } from "lucide-react";
 import { formatEuros, fundingPercent } from "@/lib/utils";
 import type { Event, WishList, WishItem } from "@/db/schema";
 
@@ -308,9 +309,16 @@ export default function WishListEditor({ event, wishList }: Props) {
     <div style={{ maxWidth: "720px" }}>
       {/* ── HEADER ── */}
       <div style={{ marginBottom: "28px" }}>
+        <Link href={`/dashboard/eventos/${event.id}`} style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          color: "var(--neutral-500)", textDecoration: "none",
+          fontSize: "0.82rem", marginBottom: "16px",
+        }}>
+          <ArrowLeft size={14} /> {event.celebrantName}
+        </Link>
         <h1 style={{ fontSize: "var(--text-3xl)", marginBottom: "6px" }}>Lista de regalos</h1>
         <p style={{ color: "var(--neutral-400)", marginBottom: "20px" }}>
-          {event.celebrantName} · {items.length} {items.length === 1 ? "regalo" : "regalos"}
+          {items.length} {items.length === 1 ? "regalo" : "regalos"}
         </p>
 
         {/* Share bar */}

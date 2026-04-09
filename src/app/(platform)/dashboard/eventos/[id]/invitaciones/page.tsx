@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import VideoWizardClient from "./VideoWizardClient";
 
 interface Props {
@@ -24,6 +26,13 @@ export default async function InvitacionesPage({ params }: Props) {
   return (
     <div style={{ maxWidth: "760px" }}>
       <div style={{ marginBottom: "28px" }}>
+        <Link href={`/dashboard/eventos/${id}`} style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          color: "var(--neutral-500)", textDecoration: "none",
+          fontSize: "0.82rem", marginBottom: "16px",
+        }}>
+          <ArrowLeft size={14} /> {event.celebrantName}
+        </Link>
         <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "6px" }}>Invitación en vídeo</h1>
         <p style={{ color: "var(--neutral-400)" }}>
           Crea una invitación personalizada con IA para {event.celebrantName}

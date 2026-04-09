@@ -1,9 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
-import { events, guests } from "@/db/schema";
+import { events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
-import { Users, UserCheck, UserX, Clock, Mail } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import GuestsClient from "./GuestsClient";
 
 interface Props {
@@ -32,8 +33,15 @@ export default async function InvitadosPage({ params }: Props) {
   return (
     <div style={{ maxWidth: "760px" }}>
       <div style={{ marginBottom: "28px" }}>
+        <Link href={`/dashboard/eventos/${id}`} style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          color: "var(--neutral-500)", textDecoration: "none",
+          fontSize: "0.82rem", marginBottom: "16px",
+        }}>
+          <ArrowLeft size={14} /> {event.celebrantName}
+        </Link>
         <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "6px" }}>Invitados</h1>
-        <p style={{ color: "var(--neutral-400)" }}>{event.celebrantName} · Gestiona tus invitados y confirmaciones</p>
+        <p style={{ color: "var(--neutral-400)" }}>Gestiona tus invitados y confirmaciones</p>
       </div>
 
       {/* Stats */}
