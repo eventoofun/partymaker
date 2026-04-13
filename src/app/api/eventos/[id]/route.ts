@@ -8,7 +8,7 @@ import { z } from "zod";
 const schema = z.object({
   celebrantName: z.string().min(1).max(120),
   celebrantAge: z.number().int().min(0).max(120).optional().nullable(),
-  type: z.enum(["cumpleanos", "comunion", "bautizo", "navidad", "graduacion", "otro"]),
+  type: z.enum(["birthday","wedding","graduation","bachelor","communion","baptism","christmas","corporate","other"]),
   eventDate: z.string().optional().nullable(),
   eventTime: z.string().optional().nullable(),
   venue: z.string().max(200).optional().nullable(),
@@ -29,7 +29,7 @@ export async function PATCH(req: Request, { params }: Props) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const event = await db.query.events.findFirst({
-    where: and(eq(events.id, id), eq(events.userId, userId)),
+    where: and(eq(events.id, id), eq(events.ownerId, userId)),
     columns: { id: true },
   });
   if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -64,7 +64,7 @@ export async function DELETE(_req: Request, { params }: Props) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const event = await db.query.events.findFirst({
-    where: and(eq(events.id, id), eq(events.userId, userId)),
+    where: and(eq(events.id, id), eq(events.ownerId, userId)),
     columns: { id: true },
   });
   if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: Props) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const event = await db.query.events.findFirst({
-    where: and(eq(events.id, id), eq(events.userId, userId)),
+    where: and(eq(events.id, id), eq(events.ownerId, userId)),
     columns: {
       id: true,
       type: true,
