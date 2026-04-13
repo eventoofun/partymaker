@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Heart, Sparkles, Trash2, ExternalLink, Camera, Package } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Heart, Sparkles, Trash2, ExternalLink, Camera, Package, EyeOff, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Photo {
@@ -38,6 +38,7 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
   const [filter, setFilter] = useState<Filter>("all");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const filtered = photos.filter((p) => filter === "all" || p.status === filter);
   const counts = {
@@ -73,6 +74,23 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
       setPhotos((prev) => prev.map((p) => p.id === photoId ? { ...p, usedForProduct: photo.usedForProduct } : p));
     }
     setLoadingId(null);
+  }
+
+  async function approveAll() {
+    const pending = photos.filter((p) => p.status === "pending");
+    if (pending.length === 0) return;
+    setBulkLoading(true);
+    await Promise.all(
+      pending.map((p) =>
+        fetch(`/api/eventos/${eventId}/momentos/${p.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "approved" }),
+        })
+      )
+    );
+    setPhotos((prev) => prev.map((p) => p.status === "pending" ? { ...p, status: "approved" } : p));
+    setBulkLoading(false);
   }
 
   async function deletePhoto(photoId: string) {
@@ -120,15 +138,33 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
               Fotos subidas por los invitados de {celebrantName} · Modera y selecciona las mejores
             </p>
           </div>
-          <a
-            href={`/e/${eventSlug}#momentos`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn--ghost"
-            style={{ textDecoration: "none", fontSize: "0.82rem", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: "6px" }}
-          >
-            <ExternalLink size={13} /> Ver en página pública
-          </a>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            {counts.pending > 0 && (
+              <button
+                onClick={approveAll}
+                disabled={bulkLoading}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "6px",
+                  padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer",
+                  background: "rgba(16,185,129,0.12)", color: "#10B981",
+                  fontWeight: 700, fontSize: "0.82rem",
+                  opacity: bulkLoading ? 0.6 : 1,
+                }}
+              >
+                <CheckCheck size={14} />
+                {bulkLoading ? "Aprobando..." : `Aprobar todas (${counts.pending})`}
+              </button>
+            )}
+            <a
+              href={`/e/${eventSlug}#momentos`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn--ghost"
+              style={{ textDecoration: "none", fontSize: "0.82rem", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <ExternalLink size={13} /> Ver en página pública
+            </a>
+          </div>
         </div>
       </div>
 
@@ -330,7 +366,7 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                 {/* Moderation actions */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
                   <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--neutral-600)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "2px" }}>
-                    Moderación
+                    Visibilidad en el muro
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                     <button
@@ -344,7 +380,7 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                         opacity: selectedPhoto.status === "approved" ? 0.5 : 1,
                       }}
                     >
-                      <CheckCircle2 size={13} /> Aprobar
+                      <CheckCircle2 size={13} /> Visible
                     </button>
                     <button
                       onClick={() => setStatus(selectedPhoto.id, "rejected")}
@@ -357,9 +393,16 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                         opacity: selectedPhoto.status === "rejected" ? 0.5 : 1,
                       }}
                     >
-                      <XCircle size={13} /> Rechazar
+                      <EyeOff size={13} /> Ocultar
                     </button>
                   </div>
+                  <p style={{ fontSize: "0.7rem", color: "var(--neutral-600)", margin: 0, lineHeight: 1.4 }}>
+                    {selectedPhoto.status === "rejected"
+                      ? "Oculta — no visible en el muro público."
+                      : selectedPhoto.status === "approved"
+                      ? "Visible — aprobada y sin badge de revisión."
+                      : "En revisión — visible en el muro con badge amarillo."}
+                  </p>
                   {selectedPhoto.status !== "pending" && (
                     <button
                       onClick={() => setStatus(selectedPhoto.id, "pending")}
@@ -370,7 +413,7 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                         color: "var(--neutral-500)", fontWeight: 500, fontSize: "0.75rem",
                       }}
                     >
-                      Volver a revisión
+                      <Clock size={11} style={{ marginRight: "4px" }} /> Marcar como en revisión
                     </button>
                   )}
                 </div>
@@ -378,7 +421,7 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                 {/* Product selection */}
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px", marginBottom: "12px" }}>
                   <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--neutral-600)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>
-                    El Genio — Crear producto
+                    🧞 El Genio — Crear producto
                   </div>
                   <button
                     onClick={() => toggleUsedForProduct(selectedPhoto.id, selectedPhoto.usedForProduct)}
@@ -392,18 +435,27 @@ export default function MomentosClient({ eventId, eventSlug, celebrantName, init
                       fontWeight: 700, fontSize: "0.82rem",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                       border: `1px solid ${selectedPhoto.usedForProduct ? "rgba(131,56,236,0.4)" : "rgba(131,56,236,0.15)"}`,
+                      marginBottom: selectedPhoto.usedForProduct ? "8px" : 0,
                     }}
                   >
                     {selectedPhoto.usedForProduct ? (
-                      <><Package size={14} /> Seleccionada para producto ✓</>
+                      <><Package size={14} /> Seleccionada para Tienda ✓</>
                     ) : (
-                      <><Sparkles size={14} /> Seleccionar para crear producto</>
+                      <><Sparkles size={14} /> Usar para crear producto</>
                     )}
                   </button>
                   {selectedPhoto.usedForProduct && (
-                    <p style={{ fontSize: "0.72rem", color: "var(--neutral-600)", marginTop: "8px", lineHeight: 1.5 }}>
-                      El Genio usará esta foto para generar productos exclusivos para los invitados.
-                    </p>
+                    <Link
+                      href={`/dashboard/eventos/${eventId}/tienda`}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        width: "100%", padding: "9px", borderRadius: "10px", textDecoration: "none",
+                        background: "rgba(131,56,236,0.12)", border: "1px solid rgba(131,56,236,0.25)",
+                        color: "#a78bfa", fontWeight: 700, fontSize: "0.8rem",
+                      }}
+                    >
+                      <ExternalLink size={13} /> Ir a Tienda y crear producto →
+                    </Link>
                   )}
                 </div>
 

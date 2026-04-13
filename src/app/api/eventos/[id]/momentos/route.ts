@@ -4,7 +4,7 @@
  */
 import { db } from "@/db";
 import { events, eventPhotos } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, ne, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase";
 
@@ -16,6 +16,7 @@ const BUCKET = "event-momentos";
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 // ── GET ─────────────────────────────────────────────────────────────────────
+// Public wall: returns pending + approved photos (rejected are hidden).
 export async function GET(_req: Request, { params }: Props) {
   const { id } = await params;
 
@@ -26,7 +27,7 @@ export async function GET(_req: Request, { params }: Props) {
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
   const photos = await db.query.eventPhotos.findMany({
-    where: eq(eventPhotos.eventId, id),
+    where: and(eq(eventPhotos.eventId, id), ne(eventPhotos.status, "rejected")),
     orderBy: [desc(eventPhotos.createdAt)],
   });
 

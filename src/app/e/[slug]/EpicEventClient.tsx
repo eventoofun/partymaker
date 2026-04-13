@@ -1134,12 +1134,26 @@ function MomentosEpicos({
   const ref = useRef(null);
   const inVw = useInView(ref, { once: true });
 
-  // Load existing photos on mount
+  // Load photos on mount, then poll every 30s to pick up moderation changes
   useEffect(() => {
-    fetch(`/api/eventos/${eventId}/momentos`)
-      .then((r) => r.json())
-      .then((d) => { if (d.photos) setPhotos(d.photos); })
-      .catch(() => {});
+    let cancelled = false;
+    function load() {
+      fetch(`/api/eventos/${eventId}/momentos`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (cancelled || !d.photos) return;
+          // Merge: keep locally-uploaded pending photos that aren't on server yet
+          setPhotos((prev) => {
+            const serverIds = new Set(d.photos.map((p: EventPhoto) => p.id));
+            const localOnly = prev.filter((p) => !serverIds.has(p.id));
+            return [...localOnly, ...d.photos];
+          });
+        })
+        .catch(() => {});
+    }
+    load();
+    const timer = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, [eventId]);
 
   async function uploadFiles(files: File[], name: string) {
