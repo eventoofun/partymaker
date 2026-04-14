@@ -208,7 +208,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
 
   // Step 2 state
-  const [protagonistName, setProtagonistName] = useState(existingProject?.protagonistName ?? event.celebrantName);
+  const [protagonistName, setProtagonistName] = useState(existingProject?.protagonistName || event.celebrantName);
   const [protagonistDescription, setProtagonistDescription] = useState(existingProject?.protagonistDescription ?? "");
   const [transformationDescription, setTransformationDescription] = useState(existingProject?.transformationDescription ?? "");
   const [sceneDescription, setSceneDescription] = useState(existingProject?.sceneDescription ?? "");
@@ -256,7 +256,10 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind, filename: file.name, contentType: file.type }),
     });
-    if (!presignRes.ok) throw new Error("Error generando URL de subida");
+    if (!presignRes.ok) {
+      const e = await presignRes.json().catch(() => ({}));
+      throw new Error(e.error ?? "Error generando URL de subida");
+    }
     const { uploadUrl, storagePath } = await presignRes.json();
 
     // 2. Upload directly to Supabase
@@ -265,14 +268,18 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
       body: file,
       headers: { "Content-Type": file.type },
     });
-    if (!uploadRes.ok) throw new Error("Error subiendo archivo");
+    if (!uploadRes.ok) throw new Error("Error subiendo archivo al almacenamiento");
 
     // 3. Confirm upload
-    await fetch(`/api/video-projects/${projectId}/assets/confirm`, {
+    const confirmRes = await fetch(`/api/video-projects/${projectId}/assets/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind, storagePath }),
     });
+    if (!confirmRes.ok) {
+      const e = await confirmRes.json().catch(() => ({}));
+      throw new Error(e.error ?? "Error confirmando la subida");
+    }
   }
 
   async function handleStep1Submit() {
@@ -326,8 +333,11 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   // ── Step 2 handlers ──
 
   async function handleStep2Submit() {
+    // Show immediate feedback so the user knows the click registered
+    toast.loading("Guardando escena…", { id: "gen-preview" });
+
     if (!project) {
-      toast.error("Error: no hay proyecto activo. Vuelve al paso anterior y sube la foto.");
+      toast.error("Error: no hay proyecto activo. Vuelve al paso anterior y sube la foto.", { id: "gen-preview" });
       return;
     }
     setLoading(true);
@@ -370,7 +380,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error inesperado";
       console.error("[VideoWizard] handleStep2Submit error:", msg);
-      toast.error(msg, { id: "gen-preview", duration: 6000 });
+      toast.error(msg, { id: "gen-preview", duration: 8000 });
     } finally {
       setLoading(false);
     }
