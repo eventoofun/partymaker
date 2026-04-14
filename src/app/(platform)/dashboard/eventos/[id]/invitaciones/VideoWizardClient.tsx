@@ -284,6 +284,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
       // Create project if it doesn't exist
       let proj = project;
       if (!proj) {
+        toast.loading("Creando proyecto…", { id: "step1" });
         const res = await fetch("/api/video-projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -295,21 +296,28 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             aspectRatio: "9:16",
           }),
         });
-        if (!res.ok) throw new Error("Error creando proyecto");
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error ?? "Error creando el proyecto");
+        }
         proj = await res.json();
         setProject(proj);
       }
 
       // Upload assets
+      toast.loading("Subiendo foto…", { id: "step1" });
       await uploadAsset(proj!.id, "protagonist_image", imageFile);
       if (mode === "lipsync" && audioFile) {
+        toast.loading("Subiendo audio…", { id: "step1" });
         await uploadAsset(proj!.id, "audio", audioFile);
       }
 
-      toast.success("Foto subida correctamente");
+      toast.success("¡Foto subida! Ahora describe la escena.", { id: "step1" });
       setStep(1);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error inesperado");
+      const msg = err instanceof Error ? err.message : "Error inesperado";
+      console.error("[VideoWizard] handleStep1Submit error:", msg);
+      toast.error(msg, { id: "step1", duration: 6000 });
     } finally {
       setLoading(false);
     }
@@ -318,7 +326,10 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   // ── Step 2 handlers ──
 
   async function handleStep2Submit() {
-    if (!project) return;
+    if (!project) {
+      toast.error("Error: no hay proyecto activo. Vuelve al paso anterior y sube la foto.");
+      return;
+    }
     setLoading(true);
     try {
       // Update project with scene inputs
@@ -334,25 +345,32 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
           durationSeconds,
         }),
       });
-      if (!patchRes.ok) throw new Error("Error guardando datos");
+      if (!patchRes.ok) {
+        const patchErr = await patchRes.json().catch(() => ({}));
+        throw new Error(patchErr.error ?? "Error guardando los datos de la escena");
+      }
       const updatedProject = await patchRes.json();
       setProject(updatedProject);
 
       // Submit preview generation
+      toast.loading("Enviando a Kie.ai…", { id: "gen-preview" });
       const genRes = await fetch(`/api/video-projects/${project.id}/generate-preview`, {
         method: "POST",
       });
       if (!genRes.ok) {
-        const err = await genRes.json();
-        throw new Error(err.error ?? "Error iniciando generación");
+        const err = await genRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Error al iniciar la generación del preview");
       }
 
-      const updated = await fetch(`/api/video-projects/${project.id}`).then(r => r.json());
+      // Fetch updated state and advance UI
+      const updated = await fetch(`/api/video-projects/${project.id}`).then(r => r.ok ? r.json() : project);
       setProject(updated);
       setStep(2);
-      toast.success("¡Preview en proceso! Te avisaremos cuando esté listo.");
+      toast.success("¡Preview en proceso! Kie.ai está generando tu vídeo.", { id: "gen-preview" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error inesperado");
+      const msg = err instanceof Error ? err.message : "Error inesperado";
+      console.error("[VideoWizard] handleStep2Submit error:", msg);
+      toast.error(msg, { id: "gen-preview", duration: 6000 });
     } finally {
       setLoading(false);
     }

@@ -23,7 +23,7 @@ export type VideoProjectStatus =
 // Valid transitions: from → set of allowed next states
 const TRANSITIONS: Record<VideoProjectStatus, VideoProjectStatus[]> = {
   draft:              ["assets_uploaded"],
-  assets_uploaded:    ["prompt_compiled", "draft"],
+  assets_uploaded:    ["prompt_compiled", "preview_queued", "draft"],
   prompt_compiled:    ["preview_queued", "assets_uploaded"],
   preview_queued:     ["preview_processing"],
   preview_processing: ["preview_ready", "preview_failed"],

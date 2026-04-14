@@ -27,7 +27,7 @@ import {
   type KieTaskResult,
 } from "@/lib/kie";
 import { compilePrompt } from "./prompt-engine";
-import { assertTransition } from "./state-machine";
+import { assertTransition, type VideoProjectStatus } from "./state-machine";
 import { storeVideoFromUrl, getSignedAssetUrl } from "./storage";
 
 // ─── Generate Preview ─────────────────────────────────────────────────────────
@@ -47,11 +47,22 @@ export async function generatePreview(
 ): Promise<GeneratePreviewResult> {
   // 1. Load project
   const project = await getProjectOrThrow(projectId);
-  assertTransition(project.status, "preview_queued");
 
   if (!project.protagonistImagePath) {
-    throw new Error("Protagonist image must be uploaded before generating preview");
+    throw new Error("Debes subir la foto del protagonista antes de generar el preview");
   }
+
+  // Accept both assets_uploaded and prompt_compiled as valid starting states.
+  // assets_uploaded → preview_queued is allowed in the state machine (skipping prompt_compiled
+  // as a separate step since prompt compilation happens inside this function).
+  if (!["assets_uploaded", "prompt_compiled"].includes(project.status)) {
+    throw new Error(
+      `No se puede generar un preview en estado: ${project.status}. ` +
+      "Sube los archivos del protagonista primero.",
+    );
+  }
+
+  assertTransition(project.status as VideoProjectStatus, "preview_queued");
 
   // 2. Get a signed URL for the protagonist image (Kie.ai needs a public URL)
   const imageUrl = await getSignedAssetUrl(project.protagonistImagePath, 3600);
