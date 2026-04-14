@@ -10,7 +10,7 @@
  * All Storage calls go through ./storage.ts.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   videoProjects,
@@ -24,6 +24,7 @@ import {
   submitSeedancePreview,
   submitKlingFinal,
   submitLipsync,
+  getTaskStatus,
   type KieTaskResult,
 } from "@/lib/kie";
 import { compilePrompt } from "./prompt-engine";
@@ -159,6 +160,12 @@ export async function handleKieCallback(payload: CallbackPayload): Promise<void>
 
   if (!job) {
     console.warn(`[kie-callback] No job found for taskId=${payload.taskId}`);
+    return;
+  }
+
+  // Guard against double-processing (e.g. webhook + polling race)
+  if (job.status === "ready" || job.status === "failed") {
+    console.warn(`[kie-callback] Job ${job.id} already processed (status: ${job.status}), skipping`);
     return;
   }
 
@@ -367,6 +374,70 @@ export async function publishProject(projectId: string): Promise<void> {
     .update(videoProjects)
     .set({ status: "published", publishedAt: new Date(), updatedAt: new Date() })
     .where(eq(videoProjects.id, projectId));
+}
+
+// ─── Poll Kie.ai and sync job status ─────────────────────────────────────────
+
+/**
+ * Check Kie.ai for the latest queued job on this project and, if complete,
+ * process the result exactly as the webhook callback would.
+ *
+ * This makes the system work without requiring the KIE_CALLBACK_URL webhook —
+ * the frontend polling calls GET /api/video-projects/[id] which calls this.
+ *
+ * Returns true if the job was processed (status changed), false otherwise.
+ */
+export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> {
+  // Find the latest job that is still waiting for a callback
+  const [job] = await db
+    .select()
+    .from(generationJobs)
+    .where(
+      and(
+        eq(generationJobs.projectId, projectId),
+        eq(generationJobs.status, "queued"),
+      ),
+    )
+    .orderBy(desc(generationJobs.createdAt))
+    .limit(1);
+
+  if (!job || !job.providerTaskId) return false;
+
+  let kieStatus: { status: string; resultUrl?: string; errorMessage?: string; raw?: Record<string, unknown> };
+  try {
+    kieStatus = await getTaskStatus(job.providerTaskId);
+  } catch {
+    return false; // Kie.ai unreachable — try again next poll
+  }
+
+  // Not finished yet
+  if (["waiting", "queuing", "generating"].includes(kieStatus.status)) return false;
+
+  // Atomically claim the job to avoid double-processing when multiple
+  // requests poll at the same time. Only succeeds if status is still "queued".
+  const [claimed] = await db
+    .update(generationJobs)
+    .set({ status: "processing" })
+    .where(
+      and(
+        eq(generationJobs.id, job.id),
+        eq(generationJobs.status, "queued"),
+      ),
+    )
+    .returning();
+
+  if (!claimed) return false; // Another concurrent request already claimed it
+
+  // Delegate to the same handler the webhook uses
+  await handleKieCallback({
+    taskId: job.providerTaskId,
+    status: kieStatus.status === "success" ? "success" : "fail",
+    resultUrl: kieStatus.resultUrl,
+    errorMessage: kieStatus.errorMessage,
+    raw: (kieStatus.raw ?? {}) as Record<string, unknown>,
+  });
+
+  return true;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
