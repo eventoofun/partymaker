@@ -15,10 +15,10 @@ export async function DELETE(_req: Request, { params }: Params) {
 
   const guest = await db.query.guests.findFirst({
     where: eq(guests.id, id),
-    with: { event: { columns: { userId: true } } },
+    with: { event: { columns: { ownerId: true } } },
   });
 
-  if (!guest || guest.event.userId !== userId) {
+  if (!guest || guest.event.ownerId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

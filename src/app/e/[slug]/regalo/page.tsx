@@ -116,16 +116,15 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
       .then((r) => r.json())
       .then((d) => {
         setItem(d.item);
-        if (d.item?.price && !d.item.isCollective) {
+        // Pre-fill with item price as suggested amount
+        if (d.item?.price) {
           setCustomAmount(String(d.item.price / 100));
         }
       })
       .finally(() => setLoading(false));
   }, [itemId, slug]);
 
-  const amount = item?.isCollective
-    ? Math.round(parseFloat(customAmount || "0") * 100)
-    : (item?.price ?? 0);
+  const amount = Math.round(parseFloat(customAmount || "0") * 100);
 
   async function handleCreateIntent() {
     if (!name.trim() || !email.trim() || amount < 100) return;
@@ -135,7 +134,7 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          wishItemId: itemId,
+          giftItemId: itemId,
           amount,
           contributorName: name,
           contributorEmail: email,
@@ -216,9 +215,9 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
             <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>{item.title}</h2>
           </div>
 
-          {item.price && !item.isCollective && (
-            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "white", marginBottom: "8px" }}>
-              {formatEuros(item.price)}
+          {item.price && (
+            <div style={{ fontSize: "0.88rem", color: "var(--neutral-400)", marginBottom: "8px" }}>
+              Precio de referencia: <strong style={{ color: "white" }}>{formatEuros(item.price)}</strong>
             </div>
           )}
 
@@ -260,23 +259,28 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
                 <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="maria@email.com" style={inputStyle} />
               </div>
 
-              {item.isCollective && (
-                <div>
-                  <label style={{ display: "block", marginBottom: "6px", fontSize: "0.78rem", fontWeight: 600, color: "var(--neutral-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Importe a aportar (€) *
-                  </label>
-                  <input
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    type="number"
-                    min={1}
-                    step={0.01}
-                    placeholder="20.00"
-                    style={inputStyle}
-                  />
+              <div>
+                <label style={{ display: "block", marginBottom: "6px", fontSize: "0.78rem", fontWeight: 600, color: "var(--neutral-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Tu aportación (€) *
+                </label>
+                <input
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  type="number"
+                  min={1}
+                  step={0.01}
+                  placeholder="20.00"
+                  style={inputStyle}
+                />
+                {item.price && (
+                  <p style={{ fontSize: "0.75rem", color: "var(--neutral-600)", marginTop: "4px" }}>
+                    Precio sugerido: {formatEuros(item.price)} · Puedes aportar lo que quieras (mín. €1)
+                  </p>
+                )}
+                {!item.price && (
                   <p style={{ fontSize: "0.75rem", color: "var(--neutral-600)", marginTop: "4px" }}>Mínimo €1</p>
-                </div>
-              )}
+                )}
+              </div>
 
               <div>
                 <label style={{ display: "block", marginBottom: "6px", fontSize: "0.78rem", fontWeight: 600, color: "var(--neutral-400)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -360,8 +364,11 @@ export default function RegaloPage({ params }: { params: Promise<{ slug: string 
           </div>
         )}
 
-        <p style={{ textAlign: "center", color: "var(--neutral-600)", fontSize: "0.75rem", marginTop: "24px" }}>
+        <p style={{ textAlign: "center", color: "var(--neutral-600)", fontSize: "0.75rem", marginTop: "24px", lineHeight: 1.6 }}>
           Pago procesado de forma segura por Stripe. Cumplefy nunca almacena datos de tarjeta.
+        </p>
+        <p style={{ textAlign: "center", color: "var(--neutral-700)", fontSize: "0.68rem", marginTop: "8px", lineHeight: 1.6, maxWidth: "380px", margin: "8px auto 0" }}>
+          Los enlaces a productos pueden incluir una etiqueta de afiliación. Cumplefy recibe una pequeña comisión de Amazon, El Corte Inglés y otros partners — sin coste adicional para ti. Así el Genio puede seguir cumpliendo sueños. 🧞
         </p>
       </div>
     </div>

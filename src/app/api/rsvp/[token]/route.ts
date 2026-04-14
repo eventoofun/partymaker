@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { guests, events } from "@/db/schema";
+import { guests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,12 +8,18 @@ interface Params {
   params: Promise<{ token: string }>;
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  birthday: "Cumpleaños", wedding: "Boda", graduation: "Graduación",
+  bachelor: "Despedida", communion: "Comunión", baptism: "Bautizo",
+  christmas: "Navidad", corporate: "Empresa", other: "Evento",
+};
+
 // GET — load guest info for RSVP page
 export async function GET(_req: Request, { params }: Params) {
   const { token } = await params;
 
   const guest = await db.query.guests.findFirst({
-    where: eq(guests.rsvpToken, token),
+    where: eq(guests.inviteToken, token),
     with: {
       event: {
         columns: { celebrantName: true, type: true, eventDate: true, venue: true, slug: true },
@@ -32,7 +38,7 @@ export async function GET(_req: Request, { params }: Params) {
       eventDate: guest.event.eventDate,
       venue: guest.event.venue,
       slug: guest.event.slug,
-      currentStatus: guest.rsvpStatus,
+      currentStatus: guest.status,
     },
   });
 }
@@ -43,13 +49,13 @@ export async function POST(req: Request, { params }: Params) {
   const body = await req.json();
 
   const parsed = z.object({
-    status: z.enum(["attending", "not_attending", "maybe"]),
+    status: z.enum(["confirmed", "declined", "pending"]),
   }).safeParse(body);
 
   if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
 
   const guest = await db.query.guests.findFirst({
-    where: eq(guests.rsvpToken, token),
+    where: eq(guests.inviteToken, token),
     columns: { id: true },
   });
 
@@ -57,17 +63,8 @@ export async function POST(req: Request, { params }: Params) {
 
   await db
     .update(guests)
-    .set({ rsvpStatus: parsed.data.status, respondedAt: new Date() })
+    .set({ status: parsed.data.status })
     .where(eq(guests.id, guest.id));
 
   return NextResponse.json({ ok: true });
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  cumpleanos: "Cumpleaños",
-  comunion: "Comunión",
-  bautizo: "Bautizo",
-  navidad: "Navidad",
-  graduacion: "Graduación",
-  otro: "Evento",
-};

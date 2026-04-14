@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { wishItems } from "@/db/schema";
+import { giftItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -10,16 +10,15 @@ interface Params {
 export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
 
-  const item = await db.query.wishItems.findFirst({
-    where: eq(wishItems.id, id),
+  const item = await db.query.giftItems.findFirst({
+    where: eq(giftItems.id, id),
     columns: {
-      id: true,
-      title: true,
-      price: true,
-      isCollective: true,
-      targetAmount: true,
-      collectedAmount: true,
-      status: true,
+      id:             true,
+      title:          true,
+      price:          true,
+      quantityWanted: true,
+      quantityTaken:  true,
+      isAvailable:    true,
     },
   });
 

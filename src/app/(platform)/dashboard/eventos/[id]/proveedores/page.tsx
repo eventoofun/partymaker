@@ -110,10 +110,10 @@ export default async function ProveedoresPage({ params }: Props) {
 
   const event = await db.query.events.findFirst({
     where: eq(events.id, id),
-    columns: { id: true, userId: true, celebrantName: true, venue: true, venueAddress: true },
+    columns: { id: true, ownerId: true, celebrantName: true, venue: true, venueAddress: true },
   });
 
-  if (!event || event.userId !== userId) notFound();
+  if (!event || event.ownerId !== userId) notFound();
 
   const city = event.venueAddress
     ? event.venueAddress.split(",").pop()?.trim() ?? ""
@@ -166,7 +166,7 @@ export default async function ProveedoresPage({ params }: Props) {
             <div key={cat.name} style={{
               background: "var(--surface-card)",
               borderRadius: "var(--radius-lg)",
-              border: "1px solid rgba(255,255,255,0.07)",
+              border: "1px solid rgba(0,0,0,0.07)",
               padding: "20px",
               transition: "border-color 0.2s",
             }}>
@@ -200,8 +200,8 @@ export default async function ProveedoresPage({ params }: Props) {
                       display: "flex", alignItems: "center", gap: "4px",
                       padding: "4px 10px",
                       borderRadius: "999px",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      background: "var(--surface-elevated)",
+                      border: "1px solid rgba(0,0,0,0.08)",
+                      background: "#F2F2F7",
                       color: "var(--neutral-400)",
                       textDecoration: "none",
                       fontSize: "0.72rem",

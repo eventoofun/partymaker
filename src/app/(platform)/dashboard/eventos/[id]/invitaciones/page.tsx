@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
-import { events } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { events, videoProjects } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -18,10 +18,17 @@ export default async function InvitacionesPage({ params }: Props) {
 
   const event = await db.query.events.findFirst({
     where: eq(events.id, id),
-    with: { videoInvitations: { orderBy: (v, { desc }) => [desc(v.createdAt)] } },
   });
 
-  if (!event || event.userId !== userId) notFound();
+  if (!event || event.ownerId !== userId) notFound();
+
+  // Load the most recent video project for this event (if any)
+  const [existingProject] = await db
+    .select()
+    .from(videoProjects)
+    .where(eq(videoProjects.eventId, id))
+    .orderBy(desc(videoProjects.createdAt))
+    .limit(1);
 
   return (
     <div style={{ maxWidth: "760px" }}>
@@ -45,10 +52,9 @@ export default async function InvitacionesPage({ params }: Props) {
           celebrantAge: event.celebrantAge,
           type: event.type,
           eventDate: event.eventDate ?? null,
-          eventTime: event.eventTime ?? null,
           venue: event.venue ?? null,
         }}
-        existingVideos={event.videoInvitations}
+        existingProject={existingProject ?? null}
       />
     </div>
   );

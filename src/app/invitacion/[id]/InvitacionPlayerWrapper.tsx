@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { InvitacionProps } from "@/remotion/InvitacionComposition";
+import type { InvitacionProps } from "@/components/InvitacionPlayer";
 
 const InvitacionPlayer = dynamic(() => import("@/components/InvitacionPlayer"), { ssr: false });
 

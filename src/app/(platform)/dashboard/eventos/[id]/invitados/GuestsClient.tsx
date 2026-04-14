@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Mail, Phone, UserCheck, UserX, Clock, Copy } from "lucide-react";
+import { Plus, Trash2, Mail, Phone, UserCheck, UserX, Clock, Copy, LogIn } from "lucide-react";
 import type { Guest } from "@/db/schema";
 
-const RSVP_LABEL: Record<string, { label: string; color: string; icon: typeof UserCheck }> = {
-  attending: { label: "Asiste", color: "#06ffa5", icon: UserCheck },
-  not_attending: { label: "No asiste", color: "#ef4444", icon: UserX },
-  pending: { label: "Pendiente", color: "#f59e0b", icon: Clock },
-  maybe: { label: "Quizás", color: "#8338ec", icon: Clock },
+const STATUS_LABEL: Record<string, { label: string; color: string; icon: typeof UserCheck }> = {
+  confirmed:   { label: "Asiste",    color: "#06ffa5", icon: UserCheck },
+  declined:    { label: "No asiste", color: "#ef4444", icon: UserX },
+  pending:     { label: "Pendiente", color: "#f59e0b", icon: Clock },
+  invited:     { label: "Invitado",  color: "#8338ec", icon: Clock },
+  checked_in:  { label: "Check-in",  color: "#3b82f6", icon: LogIn },
 };
 
 interface Props {
@@ -25,14 +26,7 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    adults: "1",
-    children: "0",
-    dietaryRestrictions: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
 
   const rsvpUrl = (token: string) =>
     `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/rsvp/${token}`;
@@ -44,12 +38,12 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
       const res = await fetch("/api/guests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, ...form, adults: Number(form.adults), children: Number(form.children) }),
+        body: JSON.stringify({ eventId, ...form }),
       });
       if (!res.ok) throw new Error();
       const { guest } = await res.json();
       setGuests((prev) => [guest, ...prev]);
-      setForm({ name: "", email: "", phone: "", adults: "1", children: "0", dietaryRestrictions: "" });
+      setForm({ name: "", email: "", phone: "", notes: "" });
       setShowForm(false);
       toast.success("Invitado añadido");
     } catch {
@@ -73,20 +67,20 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
     }
   }
 
-  function copyRsvpLink(guest: Guest) {
-    if (!guest.rsvpToken) return;
-    navigator.clipboard.writeText(rsvpUrl(guest.rsvpToken));
+  function copyInviteLink(guest: Guest) {
+    if (!guest.inviteToken) return;
+    navigator.clipboard.writeText(rsvpUrl(guest.inviteToken));
     setCopiedId(guest.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    background: "var(--surface-bg)",
-    border: "1px solid rgba(255,255,255,0.10)",
+    background: "#FFFFFF",
+    border: "1px solid rgba(0,0,0,0.10)",
     borderRadius: "10px",
     padding: "10px 14px",
-    color: "white",
+    color: "#1C1C1E",
     fontSize: "0.9rem",
     outline: "none",
     fontFamily: "inherit",
@@ -114,7 +108,7 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
 
       {/* Add form */}
       {showForm && (
-        <div style={{ background: "var(--surface-card)", borderRadius: "var(--radius-xl)", padding: "24px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ background: "var(--surface-card)", borderRadius: "var(--radius-xl)", padding: "24px", marginBottom: "20px", border: "1px solid rgba(0,0,0,0.08)" }}>
           <h3 style={{ marginBottom: "20px", fontSize: "0.95rem", fontWeight: 700 }}>Nuevo invitado</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
             <div style={{ gridColumn: "1/-1" }}>
@@ -129,17 +123,9 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
               <label style={labelStyle}>Teléfono</label>
               <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="+34 600 000 000" style={inputStyle} />
             </div>
-            <div>
-              <label style={labelStyle}>Adultos</label>
-              <input value={form.adults} onChange={(e) => setForm((f) => ({ ...f, adults: e.target.value }))} type="number" min={1} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Niños</label>
-              <input value={form.children} onChange={(e) => setForm((f) => ({ ...f, children: e.target.value }))} type="number" min={0} style={inputStyle} />
-            </div>
             <div style={{ gridColumn: "1/-1" }}>
-              <label style={labelStyle}>Alergias / restricciones alimentarias</label>
-              <input value={form.dietaryRestrictions} onChange={(e) => setForm((f) => ({ ...f, dietaryRestrictions: e.target.value }))} placeholder="Sin gluten, alergia al marisco..." style={inputStyle} />
+              <label style={labelStyle}>Notas</label>
+              <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Padrino de la novia, mesa 3..." style={inputStyle} />
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
@@ -153,43 +139,43 @@ export default function GuestsClient({ eventId, initialGuests, slug }: Props) {
 
       {/* Guests list */}
       {guests.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 40px", background: "var(--surface-card)", borderRadius: "var(--radius-xl)", border: "2px dashed rgba(255,255,255,0.08)" }}>
+        <div style={{ textAlign: "center", padding: "60px 40px", background: "var(--surface-card)", borderRadius: "var(--radius-xl)", border: "2px dashed rgba(0,0,0,0.10)" }}>
           <p style={{ color: "var(--neutral-400)" }}>Aún no has añadido invitados.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {guests.map((guest) => {
-            const rsvp = RSVP_LABEL[guest.rsvpStatus] ?? RSVP_LABEL.pending;
-            const RsvpIcon = rsvp.icon;
+            const statusInfo = STATUS_LABEL[guest.status] ?? STATUS_LABEL.pending;
+            const StatusIcon = statusInfo.icon;
             return (
               <div key={guest.id} className="pm-card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                     <span style={{ fontWeight: 600, fontSize: "0.93rem" }}>{guest.name}</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.72rem", color: rsvp.color, fontWeight: 600 }}>
-                      <RsvpIcon size={11} /> {rsvp.label}
+                    <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.72rem", color: statusInfo.color, fontWeight: 600 }}>
+                      <StatusIcon size={11} /> {statusInfo.label}
                     </span>
-                    {(guest.adults > 1 || guest.children > 0) && (
-                      <span style={{ fontSize: "0.72rem", color: "var(--neutral-600)" }}>
-                        {guest.adults}A {guest.children > 0 ? `+ ${guest.children}N` : ""}
-                      </span>
-                    )}
                   </div>
                   {guest.email && (
                     <div style={{ fontSize: "0.78rem", color: "var(--neutral-500)", marginTop: "3px", display: "flex", alignItems: "center", gap: "4px" }}>
                       <Mail size={11} /> {guest.email}
                     </div>
                   )}
-                  {guest.dietaryRestrictions && (
+                  {guest.phone && (
+                    <div style={{ fontSize: "0.78rem", color: "var(--neutral-500)", marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Phone size={11} /> {guest.phone}
+                    </div>
+                  )}
+                  {guest.notes && (
                     <div style={{ fontSize: "0.75rem", color: "var(--neutral-600)", marginTop: "2px" }}>
-                      🥗 {guest.dietaryRestrictions}
+                      {guest.notes}
                     </div>
                   )}
                 </div>
 
                 <button
-                  onClick={() => copyRsvpLink(guest)}
-                  title="Copiar link de RSVP"
+                  onClick={() => copyInviteLink(guest)}
+                  title="Copiar link de invitación"
                   style={{ background: "none", border: "none", cursor: "pointer", color: copiedId === guest.id ? "#06ffa5" : "var(--neutral-600)", padding: "4px", transition: "color 0.2s" }}
                 >
                   <Copy size={15} />

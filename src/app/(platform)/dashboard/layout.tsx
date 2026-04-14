@@ -6,6 +6,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Plus, LayoutDashboard, CalendarDays } from "lucide-react";
 import SidebarNav from "./SidebarNav";
+import DashboardGenio from "./DashboardGenio";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -58,7 +59,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div style={{
           marginTop: "auto",
           padding: "12px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderTop: "1px solid rgba(0,0,0,0.06)",
           display: "flex",
           alignItems: "center",
           gap: "12px",
@@ -66,7 +67,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <UserButton appearance={{
             elements: { avatarBox: { width: "36px", height: "36px" } },
           }} />
-          <div style={{ fontSize: "0.8rem", color: "var(--neutral-500)" }}>Mi cuenta</div>
+          <div style={{ fontSize: "0.8rem", color: "#8E8E93" }}>Mi cuenta</div>
         </div>
       </aside>
 
@@ -117,6 +118,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           Eventos
         </Link>
       </nav>
+
+      {/* ── GENIO CHATBOT ── */}
+      <DashboardGenio />
     </div>
   );
 }

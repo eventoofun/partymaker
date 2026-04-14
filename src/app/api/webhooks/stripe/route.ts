@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { contributions, wishItems } from "@/db/schema";
+import { contributions, giftItems } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 
@@ -24,58 +24,46 @@ export async function POST(req: Request) {
 
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data.object as Stripe.PaymentIntent;
-    const { wishItemId, contributorName, contributorEmail, message, isAnonymous } =
+    const { wishItemId: giftItemId, contributorName, message, isAnonymous, giftListId } =
       pi.metadata ?? {};
 
-    if (!wishItemId) return NextResponse.json({ ok: true });
+    if (!giftItemId || !giftListId) return NextResponse.json({ ok: true });
 
-    // Update contribution status
-    await db
-      .update(contributions)
-      .set({ status: "completed" })
-      .where(eq(contributions.stripePaymentIntentId, pi.id));
-
-    // Upsert contribution record if not exists
+    // Upsert contribution record
     const existing = await db.query.contributions.findFirst({
       where: eq(contributions.stripePaymentIntentId, pi.id),
+      columns: { id: true },
     });
 
     if (!existing) {
       await db.insert(contributions).values({
-        wishItemId,
+        giftListId,
+        giftItemId,
         contributorName: contributorName ?? "Anónimo",
-        contributorEmail: contributorEmail ?? "",
         amount: pi.amount,
         message: message ?? undefined,
         isAnonymous: isAnonymous === "true",
         stripePaymentIntentId: pi.id,
-        status: "completed",
+        paymentStatus: "paid",
+        paidAt: new Date(),
       });
+    } else {
+      await db.update(contributions).set({ paymentStatus: "paid", paidAt: new Date() })
+        .where(eq(contributions.stripePaymentIntentId, pi.id));
     }
 
-    // Increment collectedAmount on wish item
-    await db
-      .update(wishItems)
-      .set({
-        collectedAmount: sql`${wishItems.collectedAmount} + ${pi.amount}`,
-      })
-      .where(eq(wishItems.id, wishItemId));
-
-    // Update status if fully funded
-    const item = await db.query.wishItems.findFirst({
-      where: eq(wishItems.id, wishItemId),
+    // Mark item as unavailable if quantityTaken reaches quantityWanted
+    const item = await db.query.giftItems.findFirst({
+      where: eq(giftItems.id, giftItemId),
+      columns: { id: true, quantityWanted: true, quantityTaken: true },
     });
 
-    if (item && item.targetAmount && (item.collectedAmount ?? 0) >= item.targetAmount) {
-      await db
-        .update(wishItems)
-        .set({ status: "funded" })
-        .where(eq(wishItems.id, wishItemId));
-    } else if (item && item.targetAmount && (item.collectedAmount ?? 0) > 0) {
-      await db
-        .update(wishItems)
-        .set({ status: "partially_funded" })
-        .where(eq(wishItems.id, wishItemId));
+    if (item) {
+      const newTaken = (item.quantityTaken ?? 0) + 1;
+      await db.update(giftItems).set({
+        quantityTaken: sql`${giftItems.quantityTaken} + 1`,
+        isAvailable: newTaken < item.quantityWanted,
+      }).where(eq(giftItems.id, giftItemId));
     }
   }
 
@@ -83,7 +71,7 @@ export async function POST(req: Request) {
     const pi = event.data.object as Stripe.PaymentIntent;
     await db
       .update(contributions)
-      .set({ status: "failed" })
+      .set({ paymentStatus: "failed" })
       .where(eq(contributions.stripePaymentIntentId, pi.id));
   }
 

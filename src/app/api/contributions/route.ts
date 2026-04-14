@@ -1,12 +1,12 @@
 import { db } from "@/db";
-import { wishItems, wishLists, events } from "@/db/schema";
+import { giftItems, giftLists } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createContributionPaymentIntent } from "@/lib/stripe";
 import { z } from "zod";
 
 const schema = z.object({
-  wishItemId: z.string().uuid(),
+  giftItemId: z.string().uuid(),
   amount: z.number().int().min(100), // min €1
   contributorName: z.string().min(1),
   contributorEmail: z.string().email(),
@@ -21,14 +21,14 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
-  // Load item → wishList → event → user (for Stripe Connect account)
-  const item = await db.query.wishItems.findFirst({
-    where: eq(wishItems.id, data.wishItemId),
+  // Load item → giftList → event → owner (for Stripe Connect account)
+  const item = await db.query.giftItems.findFirst({
+    where: eq(giftItems.id, data.giftItemId),
     with: {
-      wishList: {
+      giftList: {
         with: {
           event: {
-            with: { user: true },
+            columns: { slug: true, ownerId: true },
           },
         },
       },
@@ -36,27 +36,23 @@ export async function POST(req: Request) {
   });
 
   if (!item) return NextResponse.json({ error: "Gift not found" }, { status: 404 });
-  if (item.status === "purchased" || item.status === "funded") {
-    return NextResponse.json({ error: "Gift already fulfilled" }, { status: 409 });
+  if (!item.isAvailable) {
+    return NextResponse.json({ error: "Gift no longer available" }, { status: 409 });
   }
 
-  const event = item.wishList.event;
-  const organizer = event.user;
-  const connectedAccountId =
-    organizer.stripeConnectOnboarded && organizer.stripeConnectId
-      ? organizer.stripeConnectId
-      : undefined;
+  const event = item.giftList.event;
 
   const paymentIntent = await createContributionPaymentIntent({
     amount: data.amount,
-    wishItemId: data.wishItemId,
+    wishItemId: data.giftItemId,
     eventSlug: event.slug,
     contributorEmail: data.contributorEmail,
-    connectedAccountId,
+    connectedAccountId: undefined, // configure Stripe Connect separately
     metadata: {
       contributorName: data.contributorName,
       message: data.message ?? "",
       isAnonymous: String(data.isAnonymous),
+      giftListId: item.giftListId,
     },
   });
 

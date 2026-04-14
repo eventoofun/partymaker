@@ -21,13 +21,13 @@ export default async function InvitadosPage({ params }: Props) {
     with: { guests: { orderBy: (g, { desc }) => [desc(g.createdAt)] } },
   });
 
-  if (!event || event.userId !== userId) notFound();
+  if (!event || event.ownerId !== userId) notFound();
 
   const stats = {
     total: event.guests.length,
-    attending: event.guests.filter((g) => g.rsvpStatus === "attending").length,
-    notAttending: event.guests.filter((g) => g.rsvpStatus === "not_attending").length,
-    pending: event.guests.filter((g) => g.rsvpStatus === "pending").length,
+    attending: event.guests.filter((g) => g.status === "confirmed").length,
+    notAttending: event.guests.filter((g) => g.status === "declined").length,
+    pending: event.guests.filter((g) => g.status === "pending").length,
   };
 
   return (
@@ -47,7 +47,7 @@ export default async function InvitadosPage({ params }: Props) {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "28px" }}>
         {[
-          { icon: Users, label: "Total", value: stats.total, color: "white" },
+          { icon: Users, label: "Total", value: stats.total, color: "#1C1C1E" },
           { icon: UserCheck, label: "Confirmados", value: stats.attending, color: "#06ffa5" },
           { icon: UserX, label: "No asisten", value: stats.notAttending, color: "#ef4444" },
           { icon: Clock, label: "Pendientes", value: stats.pending, color: "#f59e0b" },

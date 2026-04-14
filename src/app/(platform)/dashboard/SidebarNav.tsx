@@ -13,7 +13,7 @@ export default function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+    <nav style={{ display: "flex", flexDirection: "column", gap: "2px", flex: 1 }}>
       {NAV_ITEMS.map((item) => {
         const active = item.exact
           ? pathname === item.href
@@ -28,18 +28,21 @@ export default function SidebarNav() {
               display: "flex",
               alignItems: "center",
               gap: "10px",
-              padding: "10px 12px",
-              borderRadius: "var(--radius-md)",
-              color: active ? "white" : "var(--neutral-400)",
-              background: active ? "rgba(255,255,255,0.07)" : "transparent",
+              padding: "9px 12px",
+              borderRadius: "10px",
+              color: active ? "#1C1C1E" : "#8E8E93",
+              background: active ? "rgba(0,0,0,0.06)" : "transparent",
               textDecoration: "none",
-              fontSize: "0.9rem",
-              fontWeight: active ? 600 : 500,
-              transition: "all 0.2s",
-              borderLeft: active ? "2px solid var(--brand-primary)" : "2px solid transparent",
+              fontSize: "0.875rem",
+              fontWeight: active ? 600 : 400,
+              transition: "background 0.15s, color 0.15s",
+              letterSpacing: "-0.01em",
             }}
           >
-            <Icon size={18} style={{ color: active ? "var(--brand-primary)" : "inherit" }} />
+            <Icon
+              size={17}
+              style={{ color: active ? "#00C2D1" : "#AEAEB2", flexShrink: 0 }}
+            />
             {item.label}
           </Link>
         );

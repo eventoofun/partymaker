@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -60,21 +60,16 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0a0a1a",
-  colorScheme: "dark",
-  width: "device-width",
-  initialScale: 1,
-};
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${inter.variable} ${plusJakarta.variable}`} suppressHydrationWarning>
       <head>
+        {/* Viewport inline — avoids Next.js 15.5 __next_viewport_boundary__ hydration bug */}
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Toaster
           theme="dark"

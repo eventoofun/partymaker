@@ -13,7 +13,7 @@ import { use } from "react";
 const schema = z.object({
   celebrantName: z.string().min(2, "Nombre requerido (mínimo 2 caracteres)"),
   celebrantAge: z.coerce.number().int().min(0).max(120).optional().or(z.literal("")),
-  type: z.enum(["cumpleanos", "comunion", "bautizo", "navidad", "graduacion", "otro"]),
+  type: z.enum(["birthday","wedding","graduation","bachelor","communion","baptism","christmas","corporate","other"]),
   eventDate: z.string().optional(),
   eventTime: z.string().optional(),
   venue: z.string().optional(),
@@ -27,12 +27,15 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const EVENT_TYPES = [
-  { value: "cumpleanos", label: "Cumpleaños", emoji: "🎂" },
-  { value: "comunion",   label: "Comunión",   emoji: "✝️" },
-  { value: "bautizo",    label: "Bautizo",     emoji: "👶" },
-  { value: "navidad",    label: "Navidad",     emoji: "🎄" },
-  { value: "graduacion", label: "Graduación",  emoji: "🎓" },
-  { value: "otro",       label: "Otro",        emoji: "🎉" },
+  { value: "birthday",   label: "Cumpleaños", emoji: "🎂" },
+  { value: "wedding",    label: "Boda",        emoji: "💍" },
+  { value: "graduation", label: "Graduación",  emoji: "🎓" },
+  { value: "bachelor",   label: "Despedida",   emoji: "🥂" },
+  { value: "communion",  label: "Comunión",    emoji: "✝️" },
+  { value: "baptism",    label: "Bautizo",     emoji: "👶" },
+  { value: "christmas",  label: "Navidad",     emoji: "🎄" },
+  { value: "corporate",  label: "Empresa",     emoji: "🏢" },
+  { value: "other",      label: "Otro",        emoji: "🎉" },
 ];
 
 interface Props {
@@ -57,7 +60,7 @@ export default function EditarEventoPage({ params }: Props) {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: "cumpleanos",
+      type: "birthday",
       isPublic: true,
       allowRsvp: true,
       allowGifts: true,
@@ -77,7 +80,7 @@ export default function EditarEventoPage({ params }: Props) {
         reset({
           celebrantName: data.celebrantName ?? "",
           celebrantAge: data.celebrantAge ?? "",
-          type: data.type ?? "cumpleanos",
+          type: data.type ?? "birthday",
           eventDate: data.eventDate ?? "",
           eventTime: data.eventTime ?? "",
           venue: data.venue ?? "",
@@ -129,15 +132,16 @@ export default function EditarEventoPage({ params }: Props) {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    background: "var(--surface-elevated)",
-    border: "1px solid rgba(255,255,255,0.12)",
+    background: "#FFFFFF",
+    border: "1px solid rgba(0,0,0,0.12)",
     borderRadius: "var(--radius-md)",
     padding: "12px 16px",
-    color: "white",
+    color: "#1C1C1E",
     fontSize: "0.95rem",
     outline: "none",
     fontFamily: "var(--font-body)",
     boxSizing: "border-box",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -156,8 +160,8 @@ export default function EditarEventoPage({ params }: Props) {
     gap: "8px",
     padding: "10px 18px",
     borderRadius: "var(--radius-md)",
-    border: `1px solid ${active ? "rgba(6,255,165,0.3)" : "rgba(255,255,255,0.1)"}`,
-    background: active ? "rgba(6,255,165,0.08)" : "var(--surface-elevated)",
+    border: `1px solid ${active ? "rgba(6,255,165,0.3)" : "rgba(0,0,0,0.08)"}`,
+    background: active ? "rgba(6,255,165,0.08)" : "#F2F2F7",
     color: active ? "#06ffa5" : "var(--neutral-500)",
     cursor: "pointer",
     fontSize: "0.88rem",
@@ -182,7 +186,7 @@ export default function EditarEventoPage({ params }: Props) {
           display: "flex", alignItems: "center", justifyContent: "center",
           width: "36px", height: "36px",
           borderRadius: "var(--radius-md)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: "1px solid rgba(0,0,0,0.10)",
           color: "var(--neutral-400)",
           textDecoration: "none",
           flexShrink: 0,
@@ -212,11 +216,11 @@ export default function EditarEventoPage({ params }: Props) {
                     borderRadius: "var(--radius-md)",
                     border: selectedType === t.value
                       ? "2px solid var(--brand-primary)"
-                      : "1px solid rgba(255,255,255,0.1)",
+                      : "1px solid rgba(0,0,0,0.09)",
                     background: selectedType === t.value
-                      ? "rgba(255,51,102,0.12)"
-                      : "var(--surface-elevated)",
-                    color: "white",
+                      ? "rgba(0,194,209,0.08)"
+                      : "#FFFFFF",
+                    color: "#1C1C1E",
                     cursor: "pointer",
                     fontSize: "0.78rem",
                     fontWeight: selectedType === t.value ? 700 : 400,
@@ -307,7 +311,7 @@ export default function EditarEventoPage({ params }: Props) {
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "8px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
             <button
               type="submit"
               className="btn btn--primary"
@@ -345,7 +349,7 @@ export default function EditarEventoPage({ params }: Props) {
         }}>
           <div style={{
             background: "var(--surface-card)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            border: "1px solid rgba(0,0,0,0.08)",
             borderRadius: "var(--radius-xl)",
             padding: "32px",
             maxWidth: "420px",

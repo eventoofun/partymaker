@@ -4,7 +4,7 @@ import { events, eventHosts, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2, CheckCircle2, Circle, Edit2, MessageSquare, UtensilsCrossed, QrCode, ClipboardCheck, ListOrdered, Calculator } from "lucide-react";
+import { Calendar, MapPin, Users, Gift, Video, ExternalLink, Share2, CheckCircle2, Circle, Edit2, MessageSquare, UtensilsCrossed, QrCode, ClipboardCheck, ListOrdered, Calculator, ShoppingBag, Camera } from "lucide-react";
 import { getEventRole } from "@/lib/permissions";
 import CohostPanel from "./CohostPanel";
 
@@ -80,6 +80,8 @@ export default async function EventDetailPage({ params }: Props) {
     { href: `/dashboard/eventos/${id}/operaciones`,   icon: QrCode,         label: "Operaciones",        sub: "Check-in QR y acceso offline" },
     { href: `/dashboard/eventos/${id}/programa`,      icon: ListOrdered,    label: "Programa",           sub: "Itinerario y momentos del evento" },
     { href: `/dashboard/eventos/${id}/presupuesto`,   icon: Calculator,     label: "Presupuesto",        sub: totalBudget > 0 ? `${totalBudget.toLocaleString("es-ES", { maximumFractionDigits: 0 })} € presupuestados · ${totalSpent.toLocaleString("es-ES", { maximumFractionDigits: 0 })} € gastados` : "Control de costes y gastos del evento" },
+    { href: `/dashboard/eventos/${id}/tienda`,         icon: ShoppingBag,    label: "Tienda del evento",  sub: "Vende merch y artículos personalizados" },
+    { href: `/dashboard/eventos/${id}/momentos`,      icon: Camera,         label: "Momentos épicos",    sub: "Fotos de invitados · Modera y crea productos" },
   ];
 
   return (

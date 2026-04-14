@@ -757,6 +757,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   menus:           many(menus),
   giftLists:       many(giftLists),
   videoInvitations: many(videoInvitations),
+  videoProjects:   many(videoProjects),
   faceSwapJobs:    many(faceSwapJobs),
   notifications:   many(notifications),
   checkIns:        many(checkIns),
@@ -896,6 +897,181 @@ export const eventPhotosRelations = relations(eventPhotos, ({ one }) => ({
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
+// VIDEO INVITATION PROJECTS — nuevo sistema IA (Seedance 2.0 + Kling 3.0)
+// Reemplaza la tabla video_invitations (deprecated, mantenida por compat)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const videoProjectModeEnum = pgEnum("video_project_mode", [
+  "visual",    // imagen → vídeo cinematográfico (Seedance 2.0)
+  "lipsync",   // imagen + audio → talking head (InfiniteTalk)
+]);
+
+export const videoProjectStatusEnum = pgEnum("video_project_status", [
+  "draft",
+  "assets_uploaded",
+  "prompt_compiled",
+  "preview_queued",
+  "preview_processing",
+  "preview_ready",
+  "preview_failed",
+  "awaiting_approval",
+  "approved_for_final",
+  "final_queued",
+  "final_processing",
+  "final_ready",
+  "final_failed",
+  "published",
+]);
+
+export const generationJobKindEnum = pgEnum("generation_job_kind", [
+  "preview", "final",
+]);
+
+export const generationJobStatusEnum = pgEnum("generation_job_status", [
+  "queued", "processing", "ready", "failed",
+]);
+
+export const videoAssetKindEnum = pgEnum("video_asset_kind", [
+  "protagonist_image", "audio", "preview_video", "final_video", "thumbnail",
+]);
+
+// ── Proyectos de videoinvitación ─────────────────────────────────────────────
+export const videoProjects = pgTable("video_projects", {
+  id:      uuid("id").defaultRandom().primaryKey(),
+  eventId: uuid("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+
+  // Modo de generación
+  mode:    videoProjectModeEnum("mode").default("visual").notNull(),
+
+  // Inputs del wizard
+  protagonistName:          text("protagonist_name").notNull().default(""),
+  protagonistDescription:   text("protagonist_description"),
+  transformationDescription: text("transformation_description"),
+  sceneDescription:         text("scene_description"),
+  styleDescription:         text("style_description"),
+  language:                 text("language").default("es").notNull(),
+  durationSeconds:          integer("duration_seconds").default(8).notNull(),
+  aspectRatio:              text("aspect_ratio").default("9:16").notNull(), // "9:16" | "16:9" | "1:1"
+
+  // Assets (Supabase Storage paths)
+  protagonistImagePath: text("protagonist_image_path"),  // bucket path
+  protagonistImageUrl:  text("protagonist_image_url"),   // public URL
+  audioPath:            text("audio_path"),
+  audioUrl:             text("audio_url"),
+
+  // Estado de la máquina de estados
+  status: videoProjectStatusEnum("status").default("draft").notNull(),
+
+  // Resultados finales
+  previewVideoUrl: text("preview_video_url"),
+  finalVideoUrl:   text("final_video_url"),
+  thumbnailUrl:    text("thumbnail_url"),
+  publishedAt:     timestamp("published_at"),
+
+  // Límites
+  regenerationCount: integer("regeneration_count").default(0).notNull(),
+  maxRegenerations:  integer("max_regenerations").default(3).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("video_projects_event_idx").on(t.eventId),
+  index("video_projects_status_idx").on(t.status),
+]);
+
+// ── Versiones de prompt — inmutables una vez enviadas a Kie ──────────────────
+export const promptVersions = pgTable("prompt_versions", {
+  id:        uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => videoProjects.id, { onDelete: "cascade" }),
+
+  kind:           generationJobKindEnum("kind").notNull(), // preview | final
+  visualPrompt:   text("visual_prompt").notNull(),
+  negativePrompt: text("negative_prompt"),
+  model:          text("model").notNull(),  // "bytedance/seedance-2" | "kling-3.0/video"
+
+  // Snapshot de los inputs en el momento de compilar
+  inputSnapshot: jsonb("input_snapshot").$type<Record<string, unknown>>().default({}),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("prompt_versions_project_idx").on(t.projectId),
+]);
+
+// ── Jobs de generación — uno por cada llamada a Kie.ai ──────────────────────
+export const generationJobs = pgTable("generation_jobs", {
+  id:        uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => videoProjects.id, { onDelete: "cascade" }),
+  promptVersionId: uuid("prompt_version_id").references(() => promptVersions.id),
+
+  kind:    generationJobKindEnum("kind").notNull(),
+  status:  generationJobStatusEnum("status").default("queued").notNull(),
+
+  // Kie.ai
+  provider:       text("provider").default("kie").notNull(),
+  providerModel:  text("provider_model").notNull(),  // "bytedance/seedance-2"
+  providerTaskId: text("provider_task_id"),          // taskId devuelto por Kie
+
+  // Payloads para auditoría
+  requestPayload:  jsonb("request_payload").$type<Record<string, unknown>>(),
+  callbackPayload: jsonb("callback_payload").$type<Record<string, unknown>>(),
+
+  // Resultado
+  resultVideoUrl: text("result_video_url"),  // URL temporal de Kie (expira)
+  storedVideoPath: text("stored_video_path"), // path en Supabase Storage
+
+  errorMessage: text("error_message"),
+
+  startedAt:   timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("gen_jobs_project_idx").on(t.projectId),
+  index("gen_jobs_task_id_idx").on(t.providerTaskId),
+  index("gen_jobs_status_idx").on(t.status),
+]);
+
+// ── Assets de vídeo — archivos propios almacenados en Supabase ───────────────
+export const videoAssets = pgTable("video_assets", {
+  id:        uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => videoProjects.id, { onDelete: "cascade" }),
+  jobId:     uuid("job_id").references(() => generationJobs.id),
+
+  kind:      videoAssetKindEnum("kind").notNull(),
+  storagePath: text("storage_path").notNull(),  // Supabase Storage path
+  publicUrl:   text("public_url").notNull(),
+  mimeType:    text("mime_type"),
+  sizeBytes:   integer("size_bytes"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("video_assets_project_idx").on(t.projectId),
+]);
+
+// ── Relaciones ────────────────────────────────────────────────────────────────
+export const videoProjectsRelations = relations(videoProjects, ({ one, many }) => ({
+  event:         one(events,          { fields: [videoProjects.eventId],  references: [events.id] }),
+  promptVersions: many(promptVersions),
+  generationJobs: many(generationJobs),
+  videoAssets:    many(videoAssets),
+}));
+
+export const promptVersionsRelations = relations(promptVersions, ({ one, many }) => ({
+  project: one(videoProjects, { fields: [promptVersions.projectId], references: [videoProjects.id] }),
+  jobs:    many(generationJobs),
+}));
+
+export const generationJobsRelations = relations(generationJobs, ({ one, many }) => ({
+  project:       one(videoProjects,  { fields: [generationJobs.projectId],       references: [videoProjects.id] }),
+  promptVersion: one(promptVersions, { fields: [generationJobs.promptVersionId], references: [promptVersions.id] }),
+  assets:        many(videoAssets),
+}));
+
+export const videoAssetsRelations = relations(videoAssets, ({ one }) => ({
+  project: one(videoProjects,  { fields: [videoAssets.projectId], references: [videoProjects.id] }),
+  job:     one(generationJobs, { fields: [videoAssets.jobId],     references: [generationJobs.id] }),
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TYPE EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
 export type User              = typeof users.$inferSelect;
@@ -927,6 +1103,20 @@ export type EventBudgetItem   = typeof eventBudgetItems.$inferSelect;
 export type NewEventBudgetItem = typeof eventBudgetItems.$inferInsert;
 export type EventPhoto        = typeof eventPhotos.$inferSelect;
 export type NewEventPhoto     = typeof eventPhotos.$inferInsert;
+
+// Video invitation projects (new IA system)
+export type VideoProject      = typeof videoProjects.$inferSelect;
+export type NewVideoProject   = typeof videoProjects.$inferInsert;
+export type PromptVersion     = typeof promptVersions.$inferSelect;
+export type NewPromptVersion  = typeof promptVersions.$inferInsert;
+export type GenerationJob     = typeof generationJobs.$inferSelect;
+export type NewGenerationJob  = typeof generationJobs.$inferInsert;
+export type VideoAsset        = typeof videoAssets.$inferSelect;
+export type NewVideoAsset     = typeof videoAssets.$inferInsert;
+
+export type VideoProjectStatus = typeof videoProjectStatusEnum.enumValues[number];
+export type GenerationJobStatus = typeof generationJobStatusEnum.enumValues[number];
+export type VideoProjectMode = typeof videoProjectModeEnum.enumValues[number];
 // Commerce
 export type EventStore        = typeof eventStores.$inferSelect;
 export type NewEventStore     = typeof eventStores.$inferInsert;

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { videoInvitations } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import type { InvitacionProps } from "@/remotion/InvitacionComposition";
+import type { InvitacionProps } from "@/components/InvitacionPlayer";
 import InvitacionPlayerWrapper from "./InvitacionPlayerWrapper";
 
 interface Props {
@@ -14,18 +14,16 @@ export default async function PublicInvitacionPage({ params }: Props) {
 
   const invitation = await db.query.videoInvitations.findFirst({
     where: eq(videoInvitations.id, id),
+    with: { event: { columns: { celebrantName: true, type: true } } },
   });
 
-  if (!invitation || !invitation.wizardData) notFound();
+  if (!invitation || invitation.status !== "ready") notFound();
 
-  let inputProps: InvitacionProps;
-  try {
-    const parsed = JSON.parse(invitation.wizardData);
-    inputProps = parsed.remotionProps as InvitacionProps;
-    if (!inputProps?.celebrantName) throw new Error("Missing props");
-  } catch {
-    notFound();
-  }
+  const inputProps: InvitacionProps = {
+    celebrantName: invitation.event.celebrantName ?? "Protagonista",
+    protagonistLabel: invitation.theme,
+    mood: "fun",
+  };
 
   return (
     <>
@@ -39,14 +37,10 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params;
   const invitation = await db.query.videoInvitations.findFirst({
     where: eq(videoInvitations.id, id),
-    columns: { wizardData: true },
+    with: { event: { columns: { celebrantName: true } } },
   });
 
-  let name = "Invitación";
-  try {
-    const p = JSON.parse(invitation?.wizardData ?? "{}");
-    name = p.remotionProps?.celebrantName ?? "Invitación";
-  } catch { /* ignore */ }
+  const name = invitation?.event.celebrantName ?? "Invitación";
 
   return {
     title: `¡Estás invitado/a a la fiesta de ${name}! 🎉`,

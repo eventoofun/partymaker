@@ -34,7 +34,7 @@ export default function PublicRsvpForm({ eventId }: Props) {
           eventId,
           name: name.trim(),
           email: email.trim() || undefined,
-          rsvpStatus: status,
+          status: status,
           adults,
           children,
           dietaryRestrictions: dietary.trim() || undefined,

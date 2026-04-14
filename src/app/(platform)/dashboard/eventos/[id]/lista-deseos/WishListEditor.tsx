@@ -5,10 +5,26 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Plus, Link2, ExternalLink, Trash2, Check, Gift, Zap, AlertTriangle, ArrowLeft } from "lucide-react";
 import { formatEuros, fundingPercent } from "@/lib/utils";
-import type { Event, WishList, WishItem } from "@/db/schema";
+interface WishItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  price?: number | null;
+  url?: string | null;
+  imageUrl?: string | null;
+  isAvailable: boolean;
+  quantityWanted: number;
+  quantityTaken: number;
+}
 
-type WishListWithItems = WishList & { items: WishItem[] };
-type EventWithWishList = Event & { wishList: WishListWithItems | null };
+interface WishList {
+  id: string;
+  title: string;
+  items: WishItem[];
+}
+
+type WishListWithItems = WishList;
+type EventWithWishList = { id: string; slug: string; celebrantName?: string | null; wishList: WishListWithItems | null };
 
 interface Props {
   event: EventWithWishList;
@@ -200,9 +216,7 @@ export default function WishListEditor({ event, wishList }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    url: "", title: "", description: "", price: "",
-    category: "juguete", priority: "media",
-    isCollective: false, targetAmount: "",
+    url: "", title: "", description: "", price: "", quantityWanted: "1",
   });
 
   const publicUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/e/${event.slug}`;
@@ -248,12 +262,8 @@ export default function WishListEditor({ event, wishList }: Props) {
         description: form.description.trim() || undefined,
         url: form.url.trim() || undefined,
         price: form.price ? Math.round(parseFloat(form.price) * 100) : undefined,
-        category: form.category,
-        priority: form.priority,
-        isCollective: form.isCollective,
-        targetAmount: form.isCollective && form.targetAmount
-          ? Math.round(parseFloat(form.targetAmount) * 100) : undefined,
-        position: items.length,
+        quantityWanted: form.quantityWanted ? parseInt(form.quantityWanted, 10) : 1,
+        sortOrder: items.length,
       };
       const res = await fetch("/api/wish-items", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -261,7 +271,7 @@ export default function WishListEditor({ event, wishList }: Props) {
       if (!res.ok) throw new Error();
       const { item } = await res.json();
       setItems(prev => [...prev, item]);
-      setForm({ url: "", title: "", description: "", price: "", category: "juguete", priority: "media", isCollective: false, targetAmount: "" });
+      setForm({ url: "", title: "", description: "", price: "", quantityWanted: "1" });
       setShowForm(false);
       toast.success("¡Regalo añadido!");
     } catch {
@@ -293,10 +303,10 @@ export default function WishListEditor({ event, wishList }: Props) {
 
   // ─── Styles ───────────────────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: "var(--surface-bg)",
-    border: "1px solid rgba(255,255,255,0.10)",
+    width: "100%", background: "#FFFFFF",
+    border: "1px solid rgba(0,0,0,0.10)",
     borderRadius: "var(--radius-md)", padding: "10px 14px",
-    color: "white", fontSize: "0.9rem", outline: "none",
+    color: "#1C1C1E", fontSize: "0.9rem", outline: "none",
     fontFamily: "var(--font-body)", boxSizing: "border-box",
   };
   const labelStyle: React.CSSProperties = {
@@ -325,7 +335,7 @@ export default function WishListEditor({ event, wishList }: Props) {
         <div style={{
           display: "flex", gap: "10px", padding: "12px 16px",
           background: "var(--surface-card)", borderRadius: "var(--radius-lg)",
-          border: "1px solid rgba(255,255,255,0.06)", alignItems: "center",
+          border: "1px solid rgba(0,0,0,0.06)", alignItems: "center",
         }}>
           <div style={{ flex: 1, fontSize: "0.8rem", color: "var(--neutral-500)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {publicUrl}
@@ -347,7 +357,7 @@ export default function WishListEditor({ event, wishList }: Props) {
         padding: "20px",
         background: "var(--surface-card)",
         borderRadius: "var(--radius-xl)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        border: "1px solid rgba(0,0,0,0.07)",
         marginBottom: "28px",
         transition: "all 0.4s ease",
       }}>
@@ -369,7 +379,7 @@ export default function WishListEditor({ event, wishList }: Props) {
             {count} / 5 {count > 5 ? "⚠️ Demasiados" : count >= 3 ? "✓ Ideal" : "recomendado"}
           </span>
         </div>
-        <div style={{ height: "5px", background: "rgba(255,255,255,0.06)", borderRadius: "999px", overflow: "hidden" }}>
+        <div style={{ height: "5px", background: "rgba(0,0,0,0.06)", borderRadius: "999px", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: "999px",
             background: count > 5 ? "linear-gradient(90deg,#ff3366,#ff6b6b)" :
@@ -385,33 +395,26 @@ export default function WishListEditor({ event, wishList }: Props) {
       {items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
           {items.map((item) => {
-            const pct = item.isCollective && item.targetAmount
-              ? fundingPercent(item.collectedAmount ?? 0, item.targetAmount) : null;
+            const isFulfilled = item.quantityTaken >= item.quantityWanted;
+            const pct = item.quantityWanted > 1 ? fundingPercent(item.quantityTaken, item.quantityWanted) : null;
+            const dotColor = isFulfilled ? "#94a3b8" : item.quantityTaken > 0 ? "#f59e0b" : item.isAvailable ? "#06ffa5" : "#94a3b8";
             return (
               <div key={item.id} className="pm-card" style={{ padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: "14px" }}>
                 {/* Status dot */}
                 <div style={{
                   width: "10px", height: "10px", borderRadius: "50%",
-                  background: STATUS_DOT[item.status] ?? "#94a3b8",
+                  background: dotColor,
                   flexShrink: 0, marginTop: "5px",
                 }} />
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap", marginBottom: "2px" }}>
                     <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>{item.title}</span>
-                    {item.priority === "alta" && (
-                      <span style={{ fontSize: "0.68rem", color: "#f59e0b", fontWeight: 700, background: "rgba(245,158,11,0.12)", padding: "2px 7px", borderRadius: "999px" }}>
-                        ★ Alta prioridad
+                    {isFulfilled && (
+                      <span style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: 600, background: "rgba(148,163,184,0.1)", padding: "2px 7px", borderRadius: "999px" }}>
+                        Completado
                       </span>
                     )}
-                    {item.isCollective && (
-                      <span style={{ fontSize: "0.68rem", color: "#8338ec", fontWeight: 600, background: "rgba(131,56,236,0.12)", padding: "2px 7px", borderRadius: "999px" }}>
-                        Colectivo
-                      </span>
-                    )}
-                    <span style={{ fontSize: "0.72rem", color: "var(--neutral-600)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: "999px" }}>
-                      {CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}
-                    </span>
                   </div>
 
                   {item.price && (
@@ -427,13 +430,13 @@ export default function WishListEditor({ event, wishList }: Props) {
                     </a>
                   )}
 
-                  {item.isCollective && item.targetAmount && pct !== null && (
+                  {item.quantityWanted > 1 && pct !== null && (
                     <div style={{ marginTop: "8px" }}>
                       <div className="funding-bar">
                         <div className="funding-bar__fill" style={{ width: `${pct}%` }} />
                       </div>
                       <div style={{ fontSize: "0.73rem", color: "var(--neutral-500)", marginTop: "3px" }}>
-                        {formatEuros(item.collectedAmount ?? 0)} de {formatEuros(item.targetAmount)} · {pct}%
+                        {item.quantityTaken} de {item.quantityWanted} unidades
                       </div>
                     </div>
                   )}
@@ -464,7 +467,7 @@ export default function WishListEditor({ event, wishList }: Props) {
         <div style={{
           textAlign: "center", padding: "48px 40px",
           background: "var(--surface-card)",
-          border: "2px dashed rgba(255,255,255,0.08)",
+          border: "2px dashed rgba(0,0,0,0.10)",
           borderRadius: "var(--radius-xl)", marginBottom: "20px",
         }}>
           <Gift size={36} style={{ margin: "0 auto 14px", color: "var(--neutral-600)" }} />
@@ -496,7 +499,7 @@ export default function WishListEditor({ event, wishList }: Props) {
       {showForm && (
         <div style={{
           background: "var(--surface-card)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          border: "1px solid rgba(0,0,0,0.08)",
           borderRadius: "var(--radius-xl)", padding: "26px",
           marginBottom: "20px",
         }}>
@@ -547,8 +550,8 @@ export default function WishListEditor({ event, wishList }: Props) {
             />
           </div>
 
-          {/* Price + Category */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+          {/* Price + Quantity */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "22px" }}>
             <div>
               <label style={labelStyle}>Precio (€)</label>
               <input
@@ -559,79 +562,15 @@ export default function WishListEditor({ event, wishList }: Props) {
               />
             </div>
             <div>
-              <label style={labelStyle}>Categoría</label>
-              <select
-                value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Priority */}
-          <div style={{ marginBottom: "18px" }}>
-            <label style={labelStyle}>Prioridad</label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {PRIORITIES.map(p => (
-                <button
-                  key={p.value} type="button"
-                  onClick={() => setForm(f => ({ ...f, priority: p.value }))}
-                  style={{
-                    padding: "7px 14px", borderRadius: "var(--radius-md)",
-                    border: form.priority === p.value ? "2px solid var(--brand-primary)" : "1px solid rgba(255,255,255,0.1)",
-                    background: form.priority === p.value ? "rgba(255,51,102,0.12)" : "var(--surface-bg)",
-                    color: form.priority === p.value ? "white" : "var(--neutral-400)",
-                    cursor: "pointer", fontSize: "0.82rem",
-                    fontWeight: form.priority === p.value ? 600 : 400,
-                    transition: "all 0.2s", fontFamily: "inherit",
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Collective toggle */}
-          <div style={{ marginBottom: form.isCollective ? "14px" : "22px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button
-                type="button"
-                onClick={() => setForm(f => ({ ...f, isCollective: !f.isCollective }))}
-                style={{
-                  width: "44px", height: "24px", borderRadius: "999px",
-                  background: form.isCollective ? "var(--brand-primary)" : "rgba(255,255,255,0.1)",
-                  border: "none", cursor: "pointer", position: "relative",
-                  transition: "background 0.2s", flexShrink: 0,
-                }}
-              >
-                <span style={{
-                  position: "absolute", top: "3px",
-                  left: form.isCollective ? "23px" : "3px",
-                  width: "18px", height: "18px", borderRadius: "50%",
-                  background: "white", transition: "left 0.2s",
-                }} />
-              </button>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Regalo colectivo</div>
-                <div style={{ fontSize: "0.76rem", color: "var(--neutral-500)" }}>Varios invitados pueden contribuir juntos</div>
-              </div>
-            </div>
-          </div>
-
-          {form.isCollective && (
-            <div style={{ marginBottom: "22px" }}>
-              <label style={labelStyle}>Importe objetivo (€)</label>
+              <label style={labelStyle}>Cantidad deseada</label>
               <input
-                value={form.targetAmount}
-                onChange={e => setForm(f => ({ ...f, targetAmount: e.target.value }))}
-                type="number" min={0} step={0.01} placeholder="150.00"
-                style={{ ...inputStyle, width: "180px" }}
+                value={form.quantityWanted}
+                onChange={e => setForm(f => ({ ...f, quantityWanted: e.target.value }))}
+                type="number" min={1} step={1} placeholder="1"
+                style={inputStyle}
               />
             </div>
-          )}
+          </div>
 
           {/* Actions */}
           <div style={{ display: "flex", gap: "10px" }}>
@@ -642,7 +581,7 @@ export default function WishListEditor({ event, wishList }: Props) {
               type="button"
               onClick={() => {
                 setShowForm(false);
-                setForm({ url: "", title: "", description: "", price: "", category: "juguete", priority: "media", isCollective: false, targetAmount: "" });
+                setForm({ url: "", title: "", description: "", price: "", quantityWanted: "1" });
               }}
               className="btn btn--ghost"
             >

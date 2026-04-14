@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { guests, events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { generateRsvpToken } from "@/lib/utils";
 import { z } from "zod";
 
 const schema = z.object({
@@ -11,9 +10,7 @@ const schema = z.object({
   name: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
-  adults: z.number().int().min(1).default(1),
-  children: z.number().int().min(0).default(0),
-  dietaryRestrictions: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -29,9 +26,9 @@ export async function POST(req: Request) {
   // Verify event ownership
   const event = await db.query.events.findFirst({
     where: eq(events.id, data.eventId),
-    columns: { userId: true },
+    columns: { ownerId: true },
   });
-  if (!event || event.userId !== userId) {
+  if (!event || event.ownerId !== userId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -42,11 +39,8 @@ export async function POST(req: Request) {
       name: data.name,
       email: data.email || undefined,
       phone: data.phone || undefined,
-      adults: data.adults,
-      children: data.children,
-      dietaryRestrictions: data.dietaryRestrictions || undefined,
-      rsvpToken: generateRsvpToken(),
-      rsvpStatus: "pending",
+      notes: data.notes || undefined,
+      status: "invited",
     })
     .returning();
 

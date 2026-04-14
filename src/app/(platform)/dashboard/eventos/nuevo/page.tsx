@@ -2,375 +2,457 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowRight, ArrowLeft, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Sparkles } from "lucide-react";
+import Link from "next/link";
 
-const schema = z.object({
-  celebrantName: z.string().min(2, "Nombre requerido (mínimo 2 caracteres)"),
-  celebrantAge: z.coerce.number().int().min(0).max(120).optional(),
-  type: z.enum(["cumpleanos", "comunion", "bautizo", "navidad", "graduacion", "otro"]),
-  eventDate: z.string().optional(),
-  eventTime: z.string().optional(),
-  venue: z.string().optional(),
-  venueAddress: z.string().optional(),
-  description: z.string().optional(),
-});
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type FormValues = z.infer<typeof schema>;
+type EventType =
+  | "birthday" | "wedding" | "graduation" | "bachelor"
+  | "communion" | "baptism" | "christmas" | "corporate" | "other";
 
-const EVENT_TYPES = [
-  { value: "cumpleanos", label: "Cumpleaños", emoji: "🎂" },
-  { value: "comunion",   label: "Comunión",   emoji: "✝️" },
-  { value: "bautizo",    label: "Bautizo",     emoji: "👶" },
-  { value: "navidad",    label: "Navidad",     emoji: "🎄" },
-  { value: "graduacion", label: "Graduación",  emoji: "🎓" },
-  { value: "otro",       label: "Otro",        emoji: "🎉" },
-];
-
-// ─── Genie SVG ────────────────────────────────────────────────────────────────
-function GenieWizard({ step }: { step: number }) {
-  const color = step === 1 ? "#8338ec" : "#06ffa5";
-  const bubble = step === 1
-    ? "¡Cuéntame todo sobre la fiesta! 🎉"
-    : "¡Perfecto! Ahora los detalles del evento 📅";
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
-      {/* Speech bubble */}
-      <div style={{
-        background: "var(--surface-card)",
-        border: `1px solid ${color}40`,
-        borderRadius: "16px",
-        padding: "14px 20px",
-        fontSize: "0.92rem",
-        color: "var(--neutral-200)",
-        textAlign: "center",
-        maxWidth: "260px",
-        position: "relative",
-        lineHeight: 1.5,
-      }}>
-        {bubble}
-        <div style={{
-          position: "absolute", bottom: "-10px", left: "50%", transform: "translateX(-50%)",
-          width: 0, height: 0,
-          borderLeft: "10px solid transparent",
-          borderRight: "10px solid transparent",
-          borderTop: `10px solid ${color}40`,
-        }} />
-        <div style={{
-          position: "absolute", bottom: "-9px", left: "50%", transform: "translateX(-50%)",
-          width: 0, height: 0,
-          borderLeft: "9px solid transparent",
-          borderRight: "9px solid transparent",
-          borderTop: "9px solid var(--surface-card)",
-        }} />
-      </div>
-
-      {/* Genie SVG */}
-      <svg width="140" height="180" viewBox="0 0 140 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Smoke trail */}
-        <path d="M70 175 Q55 160 60 145 Q65 130 70 120 Q75 110 70 100" stroke={`${color}60`} strokeWidth="18" strokeLinecap="round" fill="none" />
-        <path d="M70 175 Q85 162 80 147 Q75 132 70 120" stroke={`${color}40`} strokeWidth="12" strokeLinecap="round" fill="none" />
-        {/* Vapor particles */}
-        <circle cx="52" cy="148" r="5" fill={`${color}30`} />
-        <circle cx="88" cy="138" r="4" fill={`${color}25`} />
-        <circle cx="60" cy="162" r="3" fill={`${color}20`} />
-        {/* Body */}
-        <ellipse cx="70" cy="72" rx="36" ry="42" fill={color} />
-        {/* Jacket collar */}
-        <path d="M56 85 L70 95 L84 85 L80 105 L70 110 L60 105 Z" fill="rgba(0,0,0,0.25)" />
-        {/* Head */}
-        <circle cx="70" cy="32" r="26" fill={color} />
-        {/* Sunglasses frame */}
-        <rect x="44" y="26" width="22" height="14" rx="7" fill="rgba(0,0,0,0.7)" />
-        <rect x="74" y="26" width="22" height="14" rx="7" fill="rgba(0,0,0,0.7)" />
-        <line x1="66" y1="33" x2="74" y2="33" stroke="rgba(0,0,0,0.5)" strokeWidth="2" />
-        {/* Lens shine */}
-        <ellipse cx="51" cy="30" rx="4" ry="2.5" fill="rgba(255,255,255,0.18)" />
-        <ellipse cx="81" cy="30" rx="4" ry="2.5" fill="rgba(255,255,255,0.18)" />
-        {/* Pupils — star when step 2 (happy), normal otherwise */}
-        {step === 2 ? (
-          <>
-            <text x="55" y="37" fontSize="8" textAnchor="middle" fill="white">★</text>
-            <text x="85" y="37" fontSize="8" textAnchor="middle" fill="white">★</text>
-          </>
-        ) : (
-          <>
-            <circle cx="55" cy="33" r="3" fill="rgba(255,255,255,0.6)" />
-            <circle cx="85" cy="33" r="3" fill="rgba(255,255,255,0.6)" />
-          </>
-        )}
-        {/* Smile */}
-        <path d="M60 46 Q70 54 80 46" stroke="rgba(0,0,0,0.3)" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-        {/* Arms */}
-        <path d="M34 65 Q20 58 18 72 Q16 82 28 80" stroke={color} strokeWidth="10" strokeLinecap="round" fill="none" />
-        <path d="M106 65 Q120 58 122 72 Q124 82 112 80" stroke={color} strokeWidth="10" strokeLinecap="round" fill="none" />
-      </svg>
-
-      {/* Step indicator dots */}
-      <div style={{ display: "flex", gap: "8px" }}>
-        {[1, 2].map(s => (
-          <div key={s} style={{
-            width: s === step ? "24px" : "8px",
-            height: "8px",
-            borderRadius: "4px",
-            background: s === step ? color : "rgba(255,255,255,0.15)",
-            transition: "all 0.3s ease",
-          }} />
-        ))}
-      </div>
-    </div>
-  );
+interface FormState {
+  type: EventType;
+  celebrantName: string;
+  celebrantAge: string;
+  eventDate: string;
+  eventTime: string;
+  venue: string;
+  venueAddress: string;
+  description: string;
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const EVENT_TYPES: { value: EventType; label: string; emoji: string; hint: string }[] = [
+  { value: "birthday",   label: "Cumpleaños",  emoji: "🎂", hint: "De 1 a 100+" },
+  { value: "wedding",    label: "Boda",         emoji: "💍", hint: "Celebra el sí" },
+  { value: "graduation", label: "Graduación",   emoji: "🎓", hint: "Un logro enorme" },
+  { value: "bachelor",   label: "Despedida",    emoji: "🥂", hint: "Última noche libre" },
+  { value: "communion",  label: "Comunión",     emoji: "✝️", hint: "Primer sacramento" },
+  { value: "baptism",    label: "Bautizo",      emoji: "👶", hint: "Bienvenida al mundo" },
+  { value: "christmas",  label: "Navidad",      emoji: "🎄", hint: "Celebración familiar" },
+  { value: "corporate",  label: "Empresa",      emoji: "🏢", hint: "Evento corporativo" },
+  { value: "other",      label: "Otro evento",  emoji: "🎉", hint: "Lo que imagines" },
+];
+
+const TYPE_LABEL: Record<EventType, string> = {
+  birthday: "Cumpleaños", wedding: "Boda", graduation: "Graduación",
+  bachelor: "Despedida", communion: "Comunión", baptism: "Bautizo",
+  christmas: "Navidad", corporate: "Empresa", other: "Evento",
+};
+
+const STEPS = ["Celebración", "Protagonista", "Cuándo y dónde", "Detalles"];
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "#FFFFFF",
+  border: "1px solid rgba(0,0,0,0.12)",
+  borderRadius: "12px",
+  padding: "14px 18px",
+  color: "#1C1C1E",
+  fontSize: "1rem",
+  outline: "none",
+  fontFamily: "var(--font-body)",
+  boxSizing: "border-box",
+  transition: "border-color 0.2s",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: "8px",
+  fontWeight: 600,
+  fontSize: "0.78rem",
+  color: "var(--neutral-400)",
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function NuevoEventoPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { type: "cumpleanos" },
+  const [form, setForm] = useState<FormState>({
+    type: "birthday",
+    celebrantName: "",
+    celebrantAge: "",
+    eventDate: "",
+    eventTime: "",
+    venue: "",
+    venueAddress: "",
+    description: "",
   });
 
-  const selectedType = watch("type");
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
-  async function onSubmit(data: FormValues) {
+  // ── Validation ──────────────────────────────────────────────────────────────
+
+  function canAdvance(): boolean {
+    if (step === 0) return true; // type always selected
+    if (step === 1) return form.celebrantName.trim().length >= 2;
+    if (step === 2) return true; // date/venue optional
+    return true;
+  }
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+
+  async function handleCreate() {
     setLoading(true);
     try {
+      const payload: Record<string, unknown> = {
+        type: form.type,
+        celebrantName: form.celebrantName.trim(),
+      };
+      if (form.celebrantAge) payload.celebrantAge = parseInt(form.celebrantAge, 10);
+      if (form.eventDate)    payload.eventDate    = form.eventDate;
+      if (form.eventTime)    payload.eventTime    = form.eventTime;
+      if (form.venue)        payload.venue        = form.venue.trim();
+      if (form.venueAddress) payload.venueAddress = form.venueAddress.trim();
+      if (form.description)  payload.description  = form.description.trim();
+
       const res = await fetch("/api/eventos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Error al crear el evento");
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Error al crear el evento");
+      }
+
       const { eventId } = await res.json();
-      toast.success("¡Celebración creada!");
+      toast.success("¡Celebración creada! 🎉");
       router.push(`/dashboard/eventos/${eventId}`);
-    } catch {
-      toast.error("Error al crear la celebración. Inténtalo de nuevo.");
-    } finally {
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al crear el evento");
       setLoading(false);
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    background: "var(--surface-elevated)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "var(--radius-md)",
-    padding: "12px 16px",
-    color: "white",
-    fontSize: "0.95rem",
-    outline: "none",
-    transition: "border-color 0.2s",
-    fontFamily: "var(--font-body)",
-    boxSizing: "border-box",
-  };
+  // ── Render ──────────────────────────────────────────────────────────────────
 
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    marginBottom: "8px",
-    fontWeight: 600,
-    fontSize: "0.82rem",
-    color: "var(--neutral-400)",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  };
+  const selectedType = EVENT_TYPES.find((t) => t.value === form.type)!;
 
   return (
-    <div style={{ maxWidth: "900px" }}>
+    <div style={{ maxWidth: "620px", margin: "0 auto" }}>
+
       {/* Header */}
-      <div style={{ marginBottom: "36px" }}>
-        <h1 style={{
-          fontSize: "var(--text-3xl)", marginBottom: "6px",
-          background: "var(--gradient-brand)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-          fontFamily: "var(--font-display)",
-        }}>
-          Nueva celebración
-        </h1>
-        <p style={{ color: "var(--neutral-400)" }}>Paso {step} de 2 — {step === 1 ? "¿De qué va la fiesta?" : "¿Cuándo y dónde?"}</p>
-        {/* Progress bar */}
-        <div style={{ marginTop: "14px", height: "4px", background: "var(--surface-elevated)", borderRadius: "999px", overflow: "hidden" }}>
-          <div style={{
-            width: `${(step / 2) * 100}%`, height: "100%",
-            background: "var(--gradient-brand)",
-            transition: "width 0.4s ease", borderRadius: "999px",
-          }} />
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "36px" }}>
+        <Link
+          href="/dashboard"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: "36px", height: "36px", flexShrink: 0,
+            borderRadius: "10px",
+            border: "1px solid rgba(0,0,0,0.10)",
+            color: "var(--neutral-400)", textDecoration: "none",
+          }}
+        >
+          <ArrowLeft size={16} />
+        </Link>
+        <div>
+          <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "2px" }}>Nueva celebración</h1>
+          <p style={{ color: "var(--neutral-500)", fontSize: "0.85rem" }}>Paso {step + 1} de {STEPS.length}</p>
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "40px", alignItems: "start" }}>
-        {/* Form column */}
-        <form onSubmit={handleSubmit(onSubmit)}>
-          {step === 1 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
-              {/* Event type */}
-              <div>
-                <label style={labelStyle}>Tipo de celebración</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
-                  {EVENT_TYPES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setValue("type", t.value as FormValues["type"])}
-                      style={{
-                        padding: "16px 10px",
-                        borderRadius: "var(--radius-md)",
-                        border: selectedType === t.value
-                          ? "2px solid var(--brand-primary)"
-                          : "1px solid rgba(255,255,255,0.1)",
-                        background: selectedType === t.value
-                          ? "rgba(255,51,102,0.12)"
-                          : "var(--surface-elevated)",
-                        color: "white",
-                        cursor: "pointer",
-                        fontSize: "0.82rem",
-                        fontWeight: selectedType === t.value ? 700 : 400,
-                        transition: "all 0.2s",
-                        textAlign: "center",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "6px",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      <span style={{ fontSize: "1.6rem" }}>{t.emoji}</span>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      {/* Progress bar */}
+      <div style={{
+        height: "3px", borderRadius: "99px",
+        background: "rgba(0,0,0,0.08)",
+        marginBottom: "36px", overflow: "hidden",
+      }}>
+        <div style={{
+          height: "100%",
+          width: `${((step + 1) / STEPS.length) * 100}%`,
+          background: "var(--gradient-brand)",
+          borderRadius: "99px",
+          transition: "width 0.4s cubic-bezier(0.4,0,0.2,1)",
+        }} />
+      </div>
 
-              {/* Celebrant name */}
-              <div>
-                <label style={labelStyle}>Nombre del festejado/a *</label>
-                <input
-                  {...register("celebrantName")}
-                  placeholder="ej. Lucía"
-                  style={inputStyle}
-                />
-                {errors.celebrantName && (
-                  <p style={{ color: "#ef4444", fontSize: "0.8rem", marginTop: "5px" }}>
-                    {errors.celebrantName.message}
-                  </p>
-                )}
-              </div>
+      {/* Step indicators */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "32px" }}>
+        {STEPS.map((s, i) => (
+          <div key={s} style={{
+            flex: 1, textAlign: "center",
+            fontSize: "0.7rem", fontWeight: 600,
+            color: i === step ? "#1C1C1E" : i < step ? "#15803D" : "var(--neutral-600)",
+            transition: "color 0.3s",
+          }}>
+            {i < step ? "✓ " : ""}{s}
+          </div>
+        ))}
+      </div>
 
-              {/* Age */}
+      {/* ── Step 0: Tipo de celebración ── */}
+      {step === 0 && (
+        <div>
+          <div style={{ marginBottom: "24px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "6px" }}>¿Qué vais a celebrar?</div>
+            <p style={{ color: "var(--neutral-500)", fontSize: "0.88rem" }}>Elige el tipo de celebración para personalizar tu experiencia.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+            {EVENT_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => set("type", t.value)}
+                style={{
+                  padding: "18px 10px",
+                  borderRadius: "14px",
+                  border: form.type === t.value
+                    ? "2px solid var(--brand-primary)"
+                    : "1px solid rgba(0,0,0,0.09)",
+                  background: form.type === t.value
+                    ? "rgba(0,194,209,0.08)"
+                    : "#FFFFFF",
+                  color: "#1C1C1E",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
+                  transition: "all 0.2s",
+                  fontFamily: "inherit",
+                }}
+              >
+                <span style={{ fontSize: "1.8rem" }}>{t.emoji}</span>
+                <span style={{ fontSize: "0.82rem", fontWeight: form.type === t.value ? 700 : 500 }}>{t.label}</span>
+                <span style={{ fontSize: "0.7rem", color: "var(--neutral-500)" }}>{t.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 1: Protagonista ── */}
+      {step === 1 && (
+        <div>
+          <div style={{ marginBottom: "28px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "6px" }}>
+              {selectedType.emoji} ¿Quién es el protagonista?
+            </div>
+            <p style={{ color: "var(--neutral-500)", fontSize: "0.88rem" }}>
+              El nombre aparecerá en la página pública y en las invitaciones.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div>
+              <label style={labelStyle}>Nombre *</label>
+              <input
+                autoFocus
+                value={form.celebrantName}
+                onChange={(e) => set("celebrantName", e.target.value)}
+                placeholder={
+                  form.type === "wedding" ? "Los novios, ej. Ana y Carlos" :
+                  form.type === "corporate" ? "Nombre del evento o empresa" :
+                  "ej. Lucía, Carlos..."
+                }
+                style={inputStyle}
+                onKeyDown={(e) => e.key === "Enter" && canAdvance() && setStep(2)}
+              />
+              {form.celebrantName.trim().length > 0 && form.celebrantName.trim().length < 2 && (
+                <p style={{ color: "#ef4444", fontSize: "0.78rem", marginTop: "6px" }}>Mínimo 2 caracteres</p>
+              )}
+            </div>
+
+            {form.type !== "wedding" && form.type !== "corporate" && (
               <div>
-                <label style={labelStyle}>Edad que cumple</label>
+                <label style={labelStyle}>Edad <span style={{ color: "var(--neutral-600)", fontWeight: 400, textTransform: "none" }}>(opcional)</span></label>
                 <input
-                  {...register("celebrantAge")}
                   type="number"
                   min={0}
                   max={120}
-                  placeholder="ej. 7"
-                  style={{ ...inputStyle, width: "140px" }}
+                  value={form.celebrantAge}
+                  onChange={(e) => set("celebrantAge", e.target.value)}
+                  placeholder="ej. 30"
+                  style={{ ...inputStyle, maxWidth: "160px" }}
                 />
               </div>
+            )}
+          </div>
+        </div>
+      )}
 
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="btn btn--primary"
-                >
-                  Siguiente <ArrowRight size={18} />
-                </button>
-              </div>
+      {/* ── Step 2: Cuándo y dónde ── */}
+      {step === 2 && (
+        <div>
+          <div style={{ marginBottom: "28px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "6px" }}>
+              ¿Cuándo y dónde?
             </div>
-          )}
+            <p style={{ color: "var(--neutral-500)", fontSize: "0.88rem" }}>
+              Toda esta información es opcional — puedes añadirla más tarde.
+            </p>
+          </div>
 
-          {step === 2 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-              {/* Date + Time */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={labelStyle}>
-                    <Calendar size={12} style={{ display: "inline", marginRight: "5px" }} />
-                    Fecha del evento
-                  </label>
-                  <input {...register("eventDate")} type="date" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Hora</label>
-                  <input {...register("eventTime")} type="time" style={inputStyle} />
-                </div>
-              </div>
-
-              {/* Venue */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
               <div>
                 <label style={labelStyle}>
-                  <MapPin size={12} style={{ display: "inline", marginRight: "5px" }} />
-                  Nombre del lugar
+                  <Calendar size={10} style={{ display: "inline", marginRight: "4px" }} />
+                  Fecha
                 </label>
                 <input
-                  {...register("venue")}
-                  placeholder="ej. Parque de Atracciones, Casa de los abuelos..."
+                  type="date"
+                  value={form.eventDate}
+                  onChange={(e) => set("eventDate", e.target.value)}
                   style={inputStyle}
                 />
               </div>
-
               <div>
-                <label style={labelStyle}>Dirección</label>
+                <label style={labelStyle}>Hora</label>
                 <input
-                  {...register("venueAddress")}
-                  placeholder="Calle, ciudad..."
+                  type="time"
+                  value={form.eventTime}
+                  onChange={(e) => set("eventTime", e.target.value)}
                   style={inputStyle}
                 />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label style={labelStyle}>Notas para invitados</label>
-                <textarea
-                  {...register("description")}
-                  rows={3}
-                  placeholder="Información adicional, aparcamiento, código de vestimenta..."
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="btn btn--ghost"
-                >
-                  <ArrowLeft size={18} /> Atrás
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn--primary"
-                  disabled={loading}
-                >
-                  {loading ? "Creando..." : "Crear celebración"}
-                  {!loading && <ArrowRight size={18} />}
-                </button>
               </div>
             </div>
-          )}
-        </form>
 
-        {/* Genie column */}
-        <div style={{ position: "sticky", top: "24px" }}>
-          <GenieWizard step={step} />
+            <div>
+              <label style={labelStyle}>
+                <MapPin size={10} style={{ display: "inline", marginRight: "4px" }} />
+                Nombre del lugar
+              </label>
+              <input
+                value={form.venue}
+                onChange={(e) => set("venue", e.target.value)}
+                placeholder="ej. Finca La Rosaleda, Casa de los abuelos..."
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Dirección</label>
+              <input
+                value={form.venueAddress}
+                onChange={(e) => set("venueAddress", e.target.value)}
+                placeholder="Calle, número, ciudad..."
+                style={inputStyle}
+              />
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* ── Step 3: Detalles + resumen ── */}
+      {step === 3 && (
+        <div>
+          <div style={{ marginBottom: "28px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "6px" }}>
+              Últimos detalles
+            </div>
+            <p style={{ color: "var(--neutral-500)", fontSize: "0.88rem" }}>
+              Un mensaje para tus invitados — horario, dress code, aparcamiento...
+            </p>
+          </div>
+
+          <div style={{ marginBottom: "28px" }}>
+            <label style={labelStyle}>Notas para invitados <span style={{ color: "var(--neutral-600)", fontWeight: 400, textTransform: "none" }}>(opcional)</span></label>
+            <textarea
+              autoFocus
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              rows={4}
+              maxLength={2000}
+              placeholder="Ej: El acceso es por la puerta trasera. Parking gratuito en la calle Mayor. Dress code: elegante casual..."
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+            />
+            <div style={{ textAlign: "right", fontSize: "0.72rem", color: "var(--neutral-600)", marginTop: "4px" }}>
+              {form.description.length}/2000
+            </div>
+          </div>
+
+          {/* Resumen previo al envío */}
+          <div style={{
+            background: "rgba(0,0,0,0.03)",
+            border: "1px solid rgba(0,0,0,0.07)",
+            borderRadius: "14px",
+            padding: "20px",
+          }}>
+            <div style={{ fontSize: "0.75rem", color: "var(--neutral-500)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "14px" }}>
+              Resumen de tu celebración
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[
+                { label: "Tipo", value: `${selectedType.emoji} ${TYPE_LABEL[form.type]}` },
+                { label: "Protagonista", value: form.celebrantName + (form.celebrantAge ? ` · ${form.celebrantAge} años` : "") },
+                ...(form.eventDate ? [{ label: "Fecha", value: new Date(form.eventDate + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) + (form.eventTime ? ` · ${form.eventTime}h` : "") }] : []),
+                ...(form.venue ? [{ label: "Lugar", value: form.venue + (form.venueAddress ? ` — ${form.venueAddress}` : "") }] : []),
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: "flex", gap: "12px", alignItems: "baseline" }}>
+                  <span style={{ width: "90px", flexShrink: 0, fontSize: "0.75rem", color: "var(--neutral-500)", fontWeight: 600 }}>{label}</span>
+                  <span style={{ fontSize: "0.88rem", color: "#1C1C1E" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Navigation ── */}
+      <div style={{
+        display: "flex",
+        justifyContent: step > 0 ? "space-between" : "flex-end",
+        alignItems: "center",
+        marginTop: "36px",
+        paddingTop: "24px",
+        borderTop: "1px solid rgba(0,0,0,0.06)",
+      }}>
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="btn btn--ghost"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            <ArrowLeft size={16} /> Atrás
+          </button>
+        )}
+
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step + 1)}
+            disabled={!canAdvance()}
+            className="btn btn--primary"
+            style={{
+              display: "flex", alignItems: "center", gap: "8px",
+              opacity: canAdvance() ? 1 : 0.4,
+              cursor: canAdvance() ? "pointer" : "not-allowed",
+            }}
+          >
+            Siguiente <ArrowRight size={16} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={loading}
+            className="btn btn--primary btn--lg"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            {loading ? (
+              <>Creando...</>
+            ) : (
+              <>
+                <Sparkles size={18} /> Crear celebración
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
