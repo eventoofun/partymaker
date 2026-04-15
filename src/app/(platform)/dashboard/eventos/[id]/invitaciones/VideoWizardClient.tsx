@@ -191,8 +191,9 @@ function ProcessingState({ status }: { status: string }) {
 
 function getInitialStep(status: string): number {
   if (["final_ready", "published"].includes(status)) return 4;
-  if (["awaiting_approval", "approved_for_final", "final_queued", "final_processing", "final_failed"].includes(status)) return 4;
-  if (["preview_queued", "preview_processing", "preview_ready", "preview_failed"].includes(status)) return 3;
+  if (["approved_for_final", "final_queued", "final_processing", "final_failed"].includes(status)) return 4;
+  // awaiting_approval → step 3 so the "Aprobar y generar final" button is visible
+  if (["preview_queued", "preview_processing", "preview_ready", "preview_failed", "awaiting_approval"].includes(status)) return 3;
   if (["image_processing", "image_ready", "image_failed"].includes(status)) return 2;
   if (["assets_uploaded", "prompt_compiled"].includes(status)) return 1;
   return 0;
@@ -788,8 +789,8 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
       {/* ── STEP 4: Final render ──────────────────────────────────────────── */}
       {step === 4 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {project && ["final_queued", "final_processing"].includes(project.status) ? (
-            <ProcessingState status={project.status} />
+          {project && ["approved_for_final", "final_queued", "final_processing"].includes(project.status) ? (
+            <ProcessingState status={project.status === "approved_for_final" ? "final_queued" : project.status} />
           ) : project?.finalVideoUrl ? (
             <>
               <div style={{ borderRadius: "16px", overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: "480px", margin: "0 auto" }}>
