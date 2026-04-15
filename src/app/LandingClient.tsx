@@ -19,7 +19,6 @@ const CLUSTERS = [
     color: "#FF4D6D", popular: true,
     desc: "Desde los primeros pasos hasta los números redondos. Cada cumpleaños merece ser legendario.",
     href: "/cumpleanos",
-    genieImg: "/genio/genio_dj.png",
   },
   {
     id: "bodas", title: "Bodas", emoji: "💍",
@@ -28,7 +27,6 @@ const CLUSTERS = [
     color: "#C4956A", popular: false,
     desc: "El día más importante de tu vida merece la invitación más especial jamás creada.",
     href: "/bodas",
-    genieImg: "/genio/genio_bodas.png",
   },
   {
     id: "graduaciones", title: "Graduaciones", emoji: "🎓",
@@ -37,7 +35,6 @@ const CLUSTERS = [
     color: "#00C2D1", popular: true,
     desc: "Años de esfuerzo merecen una celebración épica. Marca el inicio de tu nueva etapa.",
     href: "/graduaciones",
-    genieImg: null,
   },
   {
     id: "despedidas", title: "Despedidas", emoji: "🥂",
@@ -46,7 +43,6 @@ const CLUSTERS = [
     color: "#FFB300", popular: false,
     desc: "La última gran noche de libertad. Hazla tan épica que nadie la olvide jamás.",
     href: "/despedidas",
-    genieImg: "/genio/genio_dj2.png",
   },
   {
     id: "comuniones", title: "Comuniones", emoji: "✨",
@@ -55,7 +51,6 @@ const CLUSTERS = [
     color: "#A78BFA", popular: false,
     desc: "Un momento sagrado que merece ser recordado para siempre con una invitación única.",
     href: "/comuniones",
-    genieImg: "/genio/genio_comunion.png",
   },
   {
     id: "bautizos", title: "Bautizos", emoji: "👶",
@@ -64,7 +59,6 @@ const CLUSTERS = [
     color: "#67E8F9", popular: false,
     desc: "La bienvenida más especial al mundo para el nuevo miembro de la familia.",
     href: "/bautizos",
-    genieImg: "/genio/genio_bautizos.png",
   },
   {
     id: "navidad", title: "Navidad", emoji: "🎄",
@@ -73,7 +67,6 @@ const CLUSTERS = [
     color: "#DC2626", popular: false,
     desc: "La magia de la Navidad en una invitación que quita el aliento a tus seres queridos.",
     href: "/navidad",
-    genieImg: null,
   },
   {
     id: "eventos-empresa", title: "Empresa", emoji: "🏢",
@@ -82,7 +75,6 @@ const CLUSTERS = [
     color: "#6366F1", popular: false,
     desc: "Eventos corporativos que inspiran, conectan equipos y se recuerdan durante años.",
     href: "/eventos-empresa",
-    genieImg: null,
   },
 ];
 
@@ -500,23 +492,6 @@ function ClusterCard({ c, index }: { c: typeof CLUSTERS[0]; index: number }) {
           opacity: hovered ? 1 : 0.4, transition: "opacity 0.4s",
           pointerEvents: "none",
         }} />
-
-        {/* Genie character */}
-        {c.genieImg && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={c.genieImg}
-            alt="El Genio"
-            style={{
-              position: "absolute", bottom: 0, right: 0,
-              width: "105px", objectFit: "contain",
-              animation: "genieLevitate 3.5s ease-in-out infinite",
-              pointerEvents: "none",
-              opacity: hovered ? 0.9 : 0.45,
-              transition: "opacity 0.35s",
-            }}
-          />
-        )}
 
         {c.popular && (
           <span style={{
@@ -939,10 +914,25 @@ export default function LandingClient() {
           display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
           color: "var(--neutral-600)", fontSize: "0.73rem",
           animation: "float 3s ease-in-out infinite",
+          zIndex: 1,
         }}>
           <span>Desplázate</span>
           <ChevronDown size={15} />
         </div>
+
+        {/* Genie DJ — hero decoration */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_dj.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute", bottom: 0, left: "4%",
+            width: "200px", objectFit: "contain",
+            animation: "genieLevitate 4s ease-in-out infinite",
+            opacity: 0.5, pointerEvents: "none", zIndex: 0,
+          }}
+        />
       </section>
 
       {/* ══ TRUST BAR ════════════════════════════════════════════════════════ */}
@@ -970,7 +960,20 @@ export default function LandingClient() {
       </section>
 
       {/* ══ CLUSTER HUB ══════════════════════════════════════════════════════ */}
-      <section className="section" id="celebraciones">
+      <section className="section" id="celebraciones" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Genie DJ2 — cluster section decoration */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_dj2.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute", right: "-30px", top: "50%", transform: "translateY(-50%)",
+            width: "180px", objectFit: "contain",
+            animation: "genieLevitate 3.6s ease-in-out infinite 0.5s",
+            opacity: 0.45, pointerEvents: "none",
+          }}
+        />
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "52px" }}>
             <SectionLabel>Todas las celebraciones</SectionLabel>
@@ -994,7 +997,21 @@ export default function LandingClient() {
       {/* ══ HOW IT WORKS ═════════════════════════════════════════════════════ */}
       <section className="section" id="como-funciona" style={{
         background: "linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-elevated) 50%, var(--surface-bg) 100%)",
+        position: "relative", overflow: "hidden",
       }}>
+        {/* Genie Bodas — how it works decoration */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_bodas.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute", left: "-20px", bottom: "60px",
+            width: "170px", objectFit: "contain",
+            animation: "genieLevitate 4.2s ease-in-out infinite 1s",
+            opacity: 0.4, pointerEvents: "none",
+          }}
+        />
         <div className="container container--narrow">
           <div style={{ textAlign: "center", marginBottom: "60px" }}>
             <SectionLabel>Cómo funciona</SectionLabel>
@@ -1050,7 +1067,20 @@ export default function LandingClient() {
       </section>
 
       {/* ══ FEATURES ═════════════════════════════════════════════════════════ */}
-      <section className="section" id="funcionalidades">
+      <section className="section" id="funcionalidades" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Genie Bautizos — features decoration */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_bautizos.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute", right: "-25px", top: "30%",
+            width: "175px", objectFit: "contain",
+            animation: "genieLevitate 3.9s ease-in-out infinite 0.8s",
+            opacity: 0.42, pointerEvents: "none",
+          }}
+        />
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "72px" }}>
             <SectionLabel>Funcionalidades</SectionLabel>
@@ -1120,7 +1150,20 @@ export default function LandingClient() {
       </section>
 
       {/* ══ TESTIMONIALS ═════════════════════════════════════════════════════ */}
-      <section className="section">
+      <section className="section" style={{ position: "relative", overflow: "hidden" }}>
+        {/* Genie Comunion — testimonials decoration */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_comunion.png"
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute", left: "-15px", bottom: "30px",
+            width: "160px", objectFit: "contain",
+            animation: "genieLevitate 4.5s ease-in-out infinite 1.5s",
+            opacity: 0.4, pointerEvents: "none",
+          }}
+        />
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "52px" }}>
             <SectionLabel>Testimonios</SectionLabel>
