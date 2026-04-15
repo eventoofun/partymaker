@@ -4,7 +4,7 @@
  * Full lifecycle of a VideoProject:
  *   1. generateProcessedImage() — upload photo → NanaBanana Pro → styled image
  *   2. generatePreview()        — styled image + prompt → Seedance 2 → preview video
- *   3. approveFinal()           — user approves preview → Wan 2.7 final render at 1080p
+ *   3. approveFinal()           — user approves preview → Seedance 720p final render
  *   4. handleKieCallback()      — processes Kie.ai webhook/poll results for all job types
  *
  * All DB writes go through Drizzle. All Kie.ai calls go through lib/kie.ts.
@@ -24,7 +24,6 @@ import {
 import {
   submitNanaBananaPro,
   submitSeedancePreview,
-  submitWan27Final,
   submitLipsync,
   getTaskStatus,
 } from "@/lib/kie";
@@ -452,7 +451,10 @@ export interface ApproveFinalResult {
 }
 
 /**
- * User approved the preview. Submit a Wan 2.7 final render job at 1080p.
+ * User approved the preview. Submit a Seedance 720p final render job.
+ *
+ * ATOMIC: We submit to KIE.ai BEFORE updating the DB, so if the API call
+ * fails the project stays at awaiting_approval and can be retried.
  */
 export async function approveFinal(
   projectId: string,
@@ -464,17 +466,11 @@ export async function approveFinal(
     throw new Error("Protagonist image missing");
   }
 
-  // Advance to approved_for_final first
-  await db
-    .update(videoProjects)
-    .set({ status: "approved_for_final", updatedAt: new Date() })
-    .where(eq(videoProjects.id, projectId));
-
   // Use processed image if available, fall back to original
   const imageUrl = project.processedImageUrl
     ?? await getSignedAssetUrl(project.protagonistImagePath, 3600);
 
-  // Compile final prompt (higher quality suffix)
+  // Compile final prompt
   const compiled = compilePrompt({
     kind: "final",
     mode: project.mode as "visual" | "lipsync",
@@ -487,6 +483,16 @@ export async function approveFinal(
     aspectRatio: project.aspectRatio,
   });
 
+  // Submit to KIE.ai FIRST — if this throws, project stays at awaiting_approval
+  const submitted = await submitSeedancePreview({
+    prompt: compiled.visualPrompt,
+    firstFrameUrl: imageUrl,
+    aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+    resolution: "720p",
+    durationSeconds: project.durationSeconds,
+    generateAudio: true,
+  });
+
   // Save final prompt version
   const [finalPromptVersion] = await db
     .insert(promptVersions)
@@ -495,20 +501,10 @@ export async function approveFinal(
       kind: "final",
       visualPrompt: compiled.visualPrompt,
       negativePrompt: compiled.negativePrompt,
-      model: compiled.model,
-      inputSnapshot: { ...compiled.modelInput, image_url: imageUrl },
+      model: submitted.modelId,
+      inputSnapshot: { ...submitted.requestPayload, first_frame_url: imageUrl },
     })
     .returning();
-
-  // Submit to Wan 2.7 at 1080p
-  const submitted = await submitWan27Final({
-    prompt: compiled.visualPrompt,
-    negativePrompt: compiled.negativePrompt,
-    firstFrameUrl: imageUrl,
-    aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-    durationSeconds: project.durationSeconds,
-    resolution: "1080p",
-  });
 
   // Create job record
   const [job] = await db
@@ -526,7 +522,7 @@ export async function approveFinal(
     })
     .returning();
 
-  // Advance project state
+  // Only now advance state (both steps succeed atomically)
   await db
     .update(videoProjects)
     .set({ status: "final_queued", updatedAt: new Date() })

@@ -42,7 +42,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
   const processingStates = [
     "image_processing",
     "preview_queued", "preview_processing",
-    "final_queued", "final_processing",
+    "approved_for_final", "final_queued", "final_processing",
   ];
   if (processingStates.includes(project.status)) {
     try {
