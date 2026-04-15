@@ -42,12 +42,16 @@ export interface GenerateImageResult {
 
 /**
  * Compile the scene prompt and submit a NanaBanana Pro image-processing job.
- * Takes the protagonist photo and transforms it into a styled image that
- * matches the scene description. Returns immediately — result arrives via
- * polling or webhook callback.
+ * Takes the protagonist photos (up to 3) and transforms them into a styled
+ * image that matches the scene description. Returns immediately.
+ *
+ * @param additionalImagePaths - Extra Supabase storage paths uploaded in step 0
+ *   (beyond the primary protagonistImagePath). They are signed and passed to
+ *   NanaBanana Pro as additional reference images for better results.
  */
 export async function generateProcessedImage(
   projectId: string,
+  additionalImagePaths?: string[],
 ): Promise<GenerateImageResult> {
   const project = await getProjectOrThrow(projectId);
 
@@ -65,8 +69,13 @@ export async function generateProcessedImage(
 
   assertTransition(project.status as VideoProjectStatus, "image_processing");
 
-  // 1. Get signed URL for protagonist image (NanaBanana needs a public URL)
+  // 1. Get signed URLs for all protagonist images (NanaBanana accepts up to 3)
   const imageUrl = await getSignedAssetUrl(project.protagonistImagePath, 3600);
+  const extraUrls = additionalImagePaths?.length
+    ? await Promise.all(additionalImagePaths.map((p) => getSignedAssetUrl(p, 3600)))
+    : [];
+  // Deduplicate: primary is always first, then extras (skip if same path)
+  const allImageUrls = [imageUrl, ...extraUrls.filter((u) => u !== imageUrl)];
 
   // 2. Compile the image prompt (style + scene description → NanaBanana prompt)
   const compiled = compilePrompt({
@@ -90,7 +99,7 @@ export async function generateProcessedImage(
       visualPrompt: compiled.visualPrompt,
       negativePrompt: compiled.negativePrompt,
       model: "nano-banana-pro",
-      inputSnapshot: { image_input: [imageUrl], aspect_ratio: project.aspectRatio },
+      inputSnapshot: { image_input: allImageUrls, aspect_ratio: project.aspectRatio },
     })
     .returning();
 
@@ -99,7 +108,7 @@ export async function generateProcessedImage(
 
   const submitted = await submitNanaBananaPro({
     prompt: nanaBananaPrompt,
-    imageInput: [imageUrl],
+    imageInput: allImageUrls,
     aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
     resolution: "1K",
     outputFormat: "jpg",
