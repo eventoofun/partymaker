@@ -4,17 +4,18 @@
  * VideoWizardClient — IA-powered video invitation wizard.
  *
  * Flow:
- *   Step 1: Upload protagonist photo (+ audio if lipsync mode)
- *   Step 2: Describe the scene / style
- *   Step 3: Preview (polling while Kie.ai generates)
- *   Step 4: Approve → Final render
+ *   Step 0: Upload protagonist photo (+ audio if lipsync)
+ *   Step 1: Describe scene & style
+ *   Step 2: NanaBanana Pro processes the image (polling) → user approves
+ *   Step 3: Seedance 2 generates preview video (polling) → user approves
+ *   Step 4: Kling 3.0 renders final video
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Upload, Sparkles, RefreshCw, Check, Play, ArrowLeft, ArrowRight,
-  Loader2, Image as ImageIcon, Mic, Video, Share2, AlertCircle,
+  Loader2, Image as ImageIcon, Mic, Video, Share2, AlertCircle, Wand2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ interface VideoProject {
   styleDescription?: string | null;
   durationSeconds: number;
   aspectRatio: string;
+  processedImageUrl?: string | null;
   previewVideoUrl?: string | null;
   finalVideoUrl?: string | null;
   regenerationCount: number;
@@ -53,10 +55,11 @@ interface Props {
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
 const STEPS = [
-  { label: "Foto", icon: ImageIcon },
-  { label: "Escena", icon: Sparkles },
-  { label: "Preview", icon: Play },
-  { label: "Final", icon: Video },
+  { label: "Foto",    icon: ImageIcon },
+  { label: "Escena",  icon: Sparkles  },
+  { label: "Imagen",  icon: Wand2     },
+  { label: "Preview", icon: Play      },
+  { label: "Final",   icon: Video     },
 ];
 
 function StepIndicator({ current }: { current: number }) {
@@ -64,22 +67,22 @@ function StepIndicator({ current }: { current: number }) {
     <div style={{ display: "flex", alignItems: "center", gap: "0", marginBottom: "32px" }}>
       {STEPS.map((step, i) => {
         const Icon = step.icon;
-        const done = i < current;
+        const done   = i < current;
         const active = i === current;
         return (
           <div key={i} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : 0 }}>
             <div style={{
-              width: "36px", height: "36px", borderRadius: "50%",
+              width: "32px", height: "32px", borderRadius: "50%",
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: done ? "var(--brand-primary)" : active ? "var(--brand-primary)" : "var(--surface-card)",
+              background: done || active ? "var(--brand-primary)" : "var(--surface-card)",
               border: active ? "2px solid var(--brand-primary)" : done ? "none" : "2px solid var(--neutral-700)",
               color: done || active ? "#fff" : "var(--neutral-500)",
               flexShrink: 0,
             }}>
-              {done ? <Check size={16} /> : <Icon size={16} />}
+              {done ? <Check size={14} /> : <Icon size={14} />}
             </div>
             <span style={{
-              marginLeft: "8px", fontSize: "0.78rem",
+              marginLeft: "6px", fontSize: "0.73rem",
               color: active ? "var(--neutral-100)" : "var(--neutral-500)",
               fontWeight: active ? 600 : 400, whiteSpace: "nowrap",
             }}>
@@ -87,7 +90,7 @@ function StepIndicator({ current }: { current: number }) {
             </span>
             {i < STEPS.length - 1 && (
               <div style={{
-                flex: 1, height: "1px", margin: "0 12px",
+                flex: 1, height: "1px", margin: "0 8px",
                 background: done ? "var(--brand-primary)" : "var(--neutral-700)",
               }} />
             )}
@@ -160,54 +163,58 @@ function Dropzone({
 
 // ─── Processing spinner ───────────────────────────────────────────────────────
 
-function ProcessingState({ status, onPollDone }: { status: string; onPollDone: (project: VideoProject) => void }) {
-  const projectId = useRef<string>("");
-
-  const messages: Record<string, string> = {
-    preview_queued:     "En cola — Kie.ai procesará tu vídeo en breve…",
-    preview_processing: "Generando preview con Seedance 2.0…",
-    final_queued:       "En cola para render final…",
-    final_processing:   "Render final con Kling 3.0 en curso…",
+function ProcessingState({ status }: { status: string }) {
+  const messages: Record<string, { title: string; subtitle: string }> = {
+    image_processing:   { title: "NanaBanana Pro procesando tu foto…", subtitle: "Estamos transformando la imagen del protagonista con IA. Suele tardar 1–3 minutos." },
+    preview_queued:     { title: "En cola — Kie.ai generará el vídeo en breve…", subtitle: "La cola de generación puede tardar unos minutos." },
+    preview_processing: { title: "Generando preview con Seedance 2…", subtitle: "El modelo está animando la imagen. Suele tardar 2–5 minutos." },
+    final_queued:       { title: "En cola para render final…", subtitle: "Kling 3.0 empezará en breve." },
+    final_processing:   { title: "Render final con Kling 3.0 en curso…", subtitle: "Alta calidad — puede tardar 5–10 minutos." },
   };
+
+  const msg = messages[status] ?? { title: "Procesando…", subtitle: "Espera unos instantes." };
 
   return (
     <div style={{ textAlign: "center", padding: "48px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
       <Loader2 size={48} style={{ color: "var(--brand-primary)", animation: "spin 1s linear infinite" }} />
-      <p style={{ color: "var(--neutral-300)", fontSize: "0.95rem" }}>
-        {messages[status] ?? "Procesando…"}
-      </p>
-      <p style={{ color: "var(--neutral-600)", fontSize: "0.8rem" }}>
-        Recibirás una notificación cuando esté listo. Puedes cerrar esta ventana.
+      <p style={{ color: "var(--neutral-100)", fontSize: "1rem", fontWeight: 600 }}>{msg.title}</p>
+      <p style={{ color: "var(--neutral-500)", fontSize: "0.82rem", maxWidth: "320px" }}>{msg.subtitle}</p>
+      <p style={{ color: "var(--neutral-600)", fontSize: "0.78rem" }}>
+        Puedes cerrar esta ventana — te notificaremos cuando esté listo.
       </p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
+// ─── Determine initial wizard step from project status ────────────────────────
+
+function getInitialStep(status: string): number {
+  if (["final_ready", "published"].includes(status)) return 4;
+  if (["awaiting_approval", "approved_for_final", "final_queued", "final_processing", "final_failed"].includes(status)) return 4;
+  if (["preview_queued", "preview_processing", "preview_ready", "preview_failed"].includes(status)) return 3;
+  if (["image_processing", "image_ready", "image_failed"].includes(status)) return 2;
+  if (["assets_uploaded", "prompt_compiled"].includes(status)) return 1;
+  return 0;
+}
+
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
 export default function VideoWizardClient({ eventId, event, existingProject }: Props) {
-  const [step, setStep] = useState(() => {
-    if (!existingProject) return 0;
-    const s = existingProject.status;
-    if (["final_ready", "published"].includes(s)) return 3;
-    if (["awaiting_approval", "approved_for_final", "final_queued", "final_processing", "final_failed"].includes(s)) return 3;
-    if (["preview_ready", "preview_queued", "preview_processing", "preview_failed"].includes(s)) return 2;
-    if (["assets_uploaded", "prompt_compiled"].includes(s)) return 1;
-    return 0;
-  });
-
+  const [step, setStep] = useState(() =>
+    existingProject ? getInitialStep(existingProject.status) : 0,
+  );
   const [project, setProject] = useState<VideoProject | null>(existingProject ?? null);
   const [loading, setLoading] = useState(false);
 
-  // Step 1 state
+  // Step 0 state
   const [mode, setMode] = useState<"visual" | "lipsync">("visual");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
 
-  // Step 2 state
+  // Step 1 state
   const [protagonistName, setProtagonistName] = useState(existingProject?.protagonistName || event.celebrantName);
   const [protagonistDescription, setProtagonistDescription] = useState(existingProject?.protagonistDescription ?? "");
   const [transformationDescription, setTransformationDescription] = useState(existingProject?.transformationDescription ?? "");
@@ -215,42 +222,37 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   const [styleDescription, setStyleDescription] = useState(existingProject?.styleDescription ?? "");
   const [durationSeconds, setDurationSeconds] = useState(existingProject?.durationSeconds ?? 8);
 
-  // ── Polling when in a processing state ──
-  const isProcessing = project && ["preview_queued","preview_processing","final_queued","final_processing"].includes(project.status);
+  // ── Polling when Kie.ai is processing ──
+  const isPolling = project && [
+    "image_processing",
+    "preview_queued", "preview_processing",
+    "final_queued", "final_processing",
+  ].includes(project.status);
 
   const pollProject = useCallback(async () => {
     if (!project?.id) return;
     try {
       const res = await fetch(`/api/video-projects/${project.id}`);
       if (!res.ok) return;
-      const data = await res.json();
+      const data: VideoProject = await res.json();
       setProject(data);
 
-      if (data.status === "preview_ready" || data.status === "awaiting_approval") setStep(2);
-      if (data.status === "final_ready" || data.status === "published") setStep(3);
+      // Auto-advance wizard step on status change
+      if (data.status === "image_ready")      setStep(2);
+      if (data.status === "awaiting_approval") setStep(3);
+      if (["final_ready", "published"].includes(data.status)) setStep(4);
     } catch { /* silent */ }
   }, [project?.id]);
 
   useEffect(() => {
-    if (!isProcessing) return;
+    if (!isPolling) return;
     const id = setInterval(pollProject, 8000);
     return () => clearInterval(id);
-  }, [isProcessing, pollProject]);
+  }, [isPolling, pollProject]);
 
-  // ── Step 1 handlers ──
-
-  function handleImageFile(file: File) {
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  }
-
-  function handleAudioFile(file: File) {
-    setAudioFile(file);
-    setAudioPreview(URL.createObjectURL(file));
-  }
+  // ── Upload helper ──
 
   async function uploadAsset(projectId: string, kind: "protagonist_image" | "audio", file: File) {
-    // 1. Get presigned URL
     const presignRes = await fetch(`/api/video-projects/${projectId}/assets/presign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -258,11 +260,10 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     });
     if (!presignRes.ok) {
       const e = await presignRes.json().catch(() => ({}));
-      throw new Error(e.error ?? "Error generando URL de subida");
+      throw new Error((e as { error?: string }).error ?? "Error generando URL de subida");
     }
-    const { uploadUrl, storagePath } = await presignRes.json();
+    const { uploadUrl, storagePath } = await presignRes.json() as { uploadUrl: string; storagePath: string };
 
-    // 2. Upload directly to Supabase
     const uploadRes = await fetch(uploadUrl, {
       method: "PUT",
       body: file,
@@ -270,7 +271,6 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     });
     if (!uploadRes.ok) throw new Error("Error subiendo archivo al almacenamiento");
 
-    // 3. Confirm upload
     const confirmRes = await fetch(`/api/video-projects/${projectId}/assets/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -278,20 +278,21 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     });
     if (!confirmRes.ok) {
       const e = await confirmRes.json().catch(() => ({}));
-      throw new Error(e.error ?? "Error confirmando la subida");
+      throw new Error((e as { error?: string }).error ?? "Error confirmando la subida");
     }
   }
 
-  async function handleStep1Submit() {
+  // ── Step 0: Upload photo ──
+
+  async function handleStep0Submit() {
     if (!imageFile) { toast.error("Sube una foto del protagonista"); return; }
     if (mode === "lipsync" && !audioFile) { toast.error("Sube el audio para el modo lipsync"); return; }
 
     setLoading(true);
     try {
-      // Create project if it doesn't exist
       let proj = project;
       if (!proj) {
-        toast.loading("Creando proyecto…", { id: "step1" });
+        toast.loading("Creando proyecto…", { id: "step0" });
         const res = await fetch("/api/video-projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -305,44 +306,42 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
         });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
-          throw new Error(e.error ?? "Error creando el proyecto");
+          throw new Error((e as { error?: string }).error ?? "Error creando el proyecto");
         }
-        proj = await res.json();
+        proj = await res.json() as VideoProject;
         setProject(proj);
       }
 
-      // Upload assets
-      toast.loading("Subiendo foto…", { id: "step1" });
+      toast.loading("Subiendo foto…", { id: "step0" });
       await uploadAsset(proj!.id, "protagonist_image", imageFile);
+
       if (mode === "lipsync" && audioFile) {
-        toast.loading("Subiendo audio…", { id: "step1" });
+        toast.loading("Subiendo audio…", { id: "step0" });
         await uploadAsset(proj!.id, "audio", audioFile);
       }
 
-      toast.success("¡Foto subida! Ahora describe la escena.", { id: "step1" });
+      toast.success("¡Foto subida! Describe ahora la escena.", { id: "step0" });
       setStep(1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error inesperado";
-      console.error("[VideoWizard] handleStep1Submit error:", msg);
-      toast.error(msg, { id: "step1", duration: 6000 });
+      toast.error(msg, { id: "step0", duration: 6000 });
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Step 2 handlers ──
+  // ── Step 1: Save scene → submit NanaBanana Pro ──
 
-  async function handleStep2Submit() {
-    // Show immediate feedback so the user knows the click registered
-    toast.loading("Guardando escena…", { id: "gen-preview" });
+  async function handleStep1Submit() {
+    toast.loading("Guardando escena…", { id: "gen-image" });
 
     if (!project) {
-      toast.error("Error: no hay proyecto activo. Vuelve al paso anterior y sube la foto.", { id: "gen-preview" });
+      toast.error("Error: no hay proyecto activo. Vuelve al paso anterior.", { id: "gen-image" });
       return;
     }
     setLoading(true);
     try {
-      // Update project with scene inputs
+      // Save scene inputs
       const patchRes = await fetch(`/api/video-projects/${project.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -356,49 +355,99 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
         }),
       });
       if (!patchRes.ok) {
-        const patchErr = await patchRes.json().catch(() => ({}));
-        throw new Error(patchErr.error ?? "Error guardando los datos de la escena");
+        const e = await patchRes.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error guardando los datos");
       }
-      const updatedProject = await patchRes.json();
+      const updatedProject = await patchRes.json() as VideoProject;
       setProject(updatedProject);
 
-      // Submit preview generation
-      toast.loading("Enviando a Kie.ai…", { id: "gen-preview" });
-      const genRes = await fetch(`/api/video-projects/${project.id}/generate-preview`, {
+      // Submit NanaBanana Pro image processing
+      toast.loading("Enviando foto a NanaBanana Pro…", { id: "gen-image" });
+      const genRes = await fetch(`/api/video-projects/${project.id}/generate-image`, {
         method: "POST",
       });
       if (!genRes.ok) {
-        const err = await genRes.json().catch(() => ({}));
-        throw new Error(err.error ?? "Error al iniciar la generación del preview");
+        const e = await genRes.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error iniciando el procesado de imagen");
       }
 
-      // Fetch updated state and advance UI
-      const updated = await fetch(`/api/video-projects/${project.id}`).then(r => r.ok ? r.json() : project);
+      // Refresh and advance to image step
+      const updated = await fetch(`/api/video-projects/${project.id}`)
+        .then(r => r.ok ? r.json() as Promise<VideoProject> : project);
       setProject(updated);
       setStep(2);
-      toast.success("¡Preview en proceso! Kie.ai está generando tu vídeo.", { id: "gen-preview" });
+      toast.success("¡Imagen enviada a NanaBanana Pro! Procesando…", { id: "gen-image" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error inesperado";
-      console.error("[VideoWizard] handleStep2Submit error:", msg);
-      toast.error(msg, { id: "gen-preview", duration: 8000 });
+      toast.error(msg, { id: "gen-image", duration: 8000 });
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Step 3: Preview ──
+  // ── Step 2: Approve processed image → submit Seedance preview ──
 
-  async function handleApprove() {
+  async function handleApproveImage() {
+    if (!project) return;
+    setLoading(true);
+    try {
+      toast.loading("Iniciando generación de preview…", { id: "gen-preview" });
+      const res = await fetch(`/api/video-projects/${project.id}/generate-preview`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error iniciando el preview");
+      }
+      const updated = await fetch(`/api/video-projects/${project.id}`)
+        .then(r => r.ok ? r.json() as Promise<VideoProject> : project);
+      setProject(updated);
+      setStep(3);
+      toast.success("¡Preview en proceso! Seedance 2 está generando el vídeo.", { id: "gen-preview" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error inesperado", { id: "gen-preview", duration: 8000 });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRegenerateImage() {
+    if (!project) return;
+    setLoading(true);
+    try {
+      toast.loading("Regenerando imagen con NanaBanana Pro…", { id: "regen-image" });
+      const res = await fetch(`/api/video-projects/${project.id}/regenerate-image`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error regenerando la imagen");
+      }
+      const updated = await fetch(`/api/video-projects/${project.id}`)
+        .then(r => r.ok ? r.json() as Promise<VideoProject> : project);
+      setProject(updated);
+      toast.success("¡Nueva imagen en proceso!", { id: "regen-image" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error inesperado", { id: "regen-image", duration: 8000 });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 3: Approve preview → Kling final render ──
+
+  async function handleApprovePreview() {
     if (!project) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/video-projects/${project.id}/approve`, { method: "POST" });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Error aprobando");
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error aprobando");
       }
-      const updated = await fetch(`/api/video-projects/${project.id}`).then(r => r.json());
+      const updated = await fetch(`/api/video-projects/${project.id}`).then(r => r.json() as Promise<VideoProject>);
       setProject(updated);
+      setStep(4);
       toast.success("¡Render final iniciado con Kling 3.0!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error inesperado");
@@ -407,19 +456,20 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     }
   }
 
-  async function handleRegenerate() {
+  async function handleRegeneratePreview() {
     if (!project) return;
     setLoading(true);
     try {
+      // Resets to image_ready so user can re-run Seedance with same image
       const res = await fetch(`/api/video-projects/${project.id}/regenerate`, { method: "POST" });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Error regenerando");
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error regenerando");
       }
-      const updated = await res.json();
+      const updated = await res.json() as VideoProject;
       setProject(updated);
-      setStep(1);
-      toast.success("Ajusta la descripción y vuelve a generar");
+      setStep(2);
+      toast.success("Vuelve a la imagen IA y genera un nuevo preview");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -429,42 +479,35 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
+  const regenLeft = project ? project.maxRegenerations - project.regenerationCount : 0;
+
   return (
     <div style={{ maxWidth: "560px" }}>
       <StepIndicator current={step} />
 
-      {/* ── STEP 0: Upload ───────────────────────────────────────────────── */}
+      {/* ── STEP 0: Upload ──────────────────────────────────────────────── */}
       {step === 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Mode selector */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             {(["visual", "lipsync"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                style={{
-                  padding: "16px", borderRadius: "12px", cursor: "pointer",
-                  border: `2px solid ${mode === m ? "var(--brand-primary)" : "var(--neutral-700)"}`,
-                  background: mode === m ? "rgba(139,92,246,0.1)" : "var(--surface-card)",
-                  color: "var(--neutral-100)", textAlign: "left",
-                }}
-              >
-                <div style={{ fontSize: "1.4rem", marginBottom: "6px" }}>
-                  {m === "visual" ? "🎬" : "🎙️"}
-                </div>
+              <button key={m} onClick={() => setMode(m)} style={{
+                padding: "16px", borderRadius: "12px", cursor: "pointer",
+                border: `2px solid ${mode === m ? "var(--brand-primary)" : "var(--neutral-700)"}`,
+                background: mode === m ? "rgba(139,92,246,0.1)" : "var(--surface-card)",
+                color: "var(--neutral-100)", textAlign: "left",
+              }}>
+                <div style={{ fontSize: "1.4rem", marginBottom: "6px" }}>{m === "visual" ? "🎬" : "🎙️"}</div>
                 <div style={{ fontWeight: 600, marginBottom: "4px" }}>
                   {m === "visual" ? "Vídeo visual" : "Talking head"}
                 </div>
                 <div style={{ fontSize: "0.78rem", color: "var(--neutral-400)" }}>
-                  {m === "visual"
-                    ? "Escena cinematográfica con el protagonista"
-                    : "El protagonista habla sincronizado con tu audio"}
+                  {m === "visual" ? "Escena cinematográfica con el protagonista" : "El protagonista habla sincronizado con tu audio"}
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Image upload */}
           <div>
             <label style={{ fontSize: "0.85rem", color: "var(--neutral-300)", display: "block", marginBottom: "8px" }}>
               Foto del protagonista *
@@ -472,13 +515,12 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             <Dropzone
               label="Sube una foto clara del protagonista"
               accept="image/jpeg,image/png,image/webp"
-              onFile={handleImageFile}
+              onFile={(f) => { setImageFile(f); setImagePreview(URL.createObjectURL(f)); }}
               preview={imagePreview}
               icon={ImageIcon}
             />
           </div>
 
-          {/* Audio upload (lipsync only) */}
           {mode === "lipsync" && (
             <div>
               <label style={{ fontSize: "0.85rem", color: "var(--neutral-300)", display: "block", marginBottom: "8px" }}>
@@ -487,7 +529,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
               <Dropzone
                 label="Sube el archivo de audio (mp3, wav, m4a)"
                 accept="audio/mpeg,audio/wav,audio/mp4,audio/m4a"
-                onFile={handleAudioFile}
+                onFile={(f) => { setAudioFile(f); setAudioPreview(URL.createObjectURL(f)); }}
                 preview={audioPreview}
                 icon={Mic}
               />
@@ -495,7 +537,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
           )}
 
           <button
-            onClick={handleStep1Submit}
+            onClick={handleStep0Submit}
             disabled={loading || !imageFile}
             style={{
               padding: "14px 24px", borderRadius: "10px", border: "none",
@@ -505,13 +547,15 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
               display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
             }}
           >
-            {loading ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={18} />}
+            {loading
+              ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
+              : <ArrowRight size={18} />}
             Continuar
           </button>
         </div>
       )}
 
-      {/* ── STEP 1: Scene description ─────────────────────────────────────── */}
+      {/* ── STEP 1: Scene description ────────────────────────────────────── */}
       {step === 1 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
@@ -591,7 +635,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
               <ArrowLeft size={16} /> Atrás
             </button>
             <button
-              onClick={handleStep2Submit}
+              onClick={handleStep1Submit}
               disabled={loading || !protagonistName}
               style={{
                 flex: 1, padding: "12px 20px", borderRadius: "10px", border: "none",
@@ -603,27 +647,96 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             >
               {loading
                 ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                : <Sparkles size={18} />}
-              Generar preview
+                : <Wand2 size={18} />}
+              Crear imagen IA
             </button>
           </div>
         </div>
       )}
 
-      {/* ── STEP 2: Preview ───────────────────────────────────────────────── */}
+      {/* ── STEP 2: Image processing / approval ──────────────────────────── */}
       {step === 2 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {isProcessing ? (
-            <ProcessingState
-              status={project!.status}
-              onPollDone={(p) => setProject(p)}
-            />
+          {project?.status === "image_processing" ? (
+            <ProcessingState status="image_processing" />
+          ) : project?.status === "image_failed" ? (
+            <div style={{ textAlign: "center", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+              <AlertCircle size={40} style={{ color: "#ef4444" }} />
+              <p style={{ color: "var(--neutral-300)" }}>El procesado de imagen falló.</p>
+              <p style={{ color: "var(--neutral-500)", fontSize: "0.82rem" }}>NanaBanana Pro no pudo transformar la foto. Inténtalo de nuevo.</p>
+              <button
+                onClick={handleRegenerateImage}
+                disabled={loading}
+                style={{ padding: "12px 24px", borderRadius: "10px", border: "none", background: "var(--brand-primary)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+              >
+                {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
+                {" "}Reintentar
+              </button>
+            </div>
+          ) : project?.processedImageUrl ? (
+            <>
+              <div>
+                <p style={{ fontSize: "0.85rem", color: "var(--neutral-400)", marginBottom: "12px", textAlign: "center" }}>
+                  NanaBanana Pro ha transformado la foto del protagonista:
+                </p>
+                <div style={{ borderRadius: "16px", overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: "400px", margin: "0 auto" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={project.processedImageUrl}
+                    alt="Imagen procesada por IA"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  onClick={handleRegenerateImage}
+                  disabled={loading || regenLeft <= 0}
+                  style={{
+                    flex: 1, padding: "12px", borderRadius: "10px",
+                    border: "1px solid var(--neutral-700)", background: "transparent",
+                    color: "var(--neutral-300)", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+                    opacity: regenLeft <= 0 ? 0.4 : 1,
+                  }}
+                >
+                  {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
+                  {regenLeft <= 0 ? "Sin regeneraciones" : `Nueva imagen (${regenLeft} restantes)`}
+                </button>
+                <button
+                  onClick={handleApproveImage}
+                  disabled={loading}
+                  style={{
+                    flex: 1, padding: "12px", borderRadius: "10px", border: "none",
+                    background: "var(--brand-primary)", color: "#fff", fontWeight: 600,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+                    opacity: loading ? 0.6 : 1,
+                  }}
+                >
+                  {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={16} />}
+                  Generar preview
+                </button>
+              </div>
+            </>
+          ) : (
+            <ProcessingState status="image_processing" />
+          )}
+        </div>
+      )}
+
+      {/* ── STEP 3: Preview video ─────────────────────────────────────────── */}
+      {step === 3 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {project && ["preview_queued", "preview_processing"].includes(project.status) ? (
+            <ProcessingState status={project.status} />
           ) : project?.status === "preview_failed" ? (
             <div style={{ textAlign: "center", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
               <AlertCircle size={40} style={{ color: "#ef4444" }} />
               <p style={{ color: "var(--neutral-300)" }}>La generación del preview falló.</p>
               <button
-                onClick={handleRegenerate}
+                onClick={handleRegeneratePreview}
                 disabled={loading}
                 style={{ padding: "12px 24px", borderRadius: "10px", border: "none", background: "var(--brand-primary)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
               >
@@ -633,36 +746,27 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             </div>
           ) : project?.previewVideoUrl ? (
             <>
-              {/* Video preview */}
               <div style={{ borderRadius: "16px", overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: "480px", margin: "0 auto" }}>
-                <video
-                  src={project.previewVideoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+                <video src={project.previewVideoUrl} controls autoPlay loop style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
 
               <div style={{ display: "flex", gap: "12px" }}>
                 <button
-                  onClick={handleRegenerate}
-                  disabled={loading || project.regenerationCount >= project.maxRegenerations}
+                  onClick={handleRegeneratePreview}
+                  disabled={loading || regenLeft <= 0}
                   style={{
                     flex: 1, padding: "12px", borderRadius: "10px",
                     border: "1px solid var(--neutral-700)", background: "transparent",
                     color: "var(--neutral-300)", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-                    opacity: project.regenerationCount >= project.maxRegenerations ? 0.4 : 1,
+                    opacity: regenLeft <= 0 ? 0.4 : 1,
                   }}
                 >
                   <RefreshCw size={16} />
-                  {project.regenerationCount >= project.maxRegenerations
-                    ? "Sin regeneraciones"
-                    : `Regenerar (${project.maxRegenerations - project.regenerationCount} restantes)`}
+                  {regenLeft <= 0 ? "Sin regeneraciones" : `Regenerar (${regenLeft} restantes)`}
                 </button>
                 <button
-                  onClick={handleApprove}
+                  onClick={handleApprovePreview}
                   disabled={loading}
                   style={{
                     flex: 1, padding: "12px", borderRadius: "10px", border: "none",
@@ -681,21 +785,15 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
         </div>
       )}
 
-      {/* ── STEP 3: Final render ──────────────────────────────────────────── */}
-      {step === 3 && (
+      {/* ── STEP 4: Final render ──────────────────────────────────────────── */}
+      {step === 4 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {project && ["final_queued","final_processing"].includes(project.status) ? (
-            <ProcessingState status={project.status} onPollDone={(p) => setProject(p)} />
+          {project && ["final_queued", "final_processing"].includes(project.status) ? (
+            <ProcessingState status={project.status} />
           ) : project?.finalVideoUrl ? (
             <>
               <div style={{ borderRadius: "16px", overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: "480px", margin: "0 auto" }}>
-                <video
-                  src={project.finalVideoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+                <video src={project.finalVideoUrl} controls autoPlay loop style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <p style={{ color: "#22c55e", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
@@ -718,7 +816,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
               <AlertCircle size={40} style={{ color: "#ef4444" }} />
               <p style={{ color: "var(--neutral-300)" }}>El render final falló. Vuelve a intentarlo.</p>
               <button
-                onClick={handleApprove}
+                onClick={handleApprovePreview}
                 disabled={loading}
                 style={{ padding: "12px 24px", borderRadius: "10px", border: "none", background: "var(--brand-primary)", color: "#fff", fontWeight: 600, cursor: "pointer" }}
               >

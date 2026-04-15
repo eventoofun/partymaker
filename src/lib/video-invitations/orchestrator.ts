@@ -1,10 +1,11 @@
 /**
  * Video invitation orchestrator.
  *
- * Coordinates the full lifecycle of a VideoProject:
- *   1. generatePreview()  — compile prompt → submit to Seedance/Wan → store job
- *   2. handleKieCallback() — process Kie.ai webhook → store video → advance state
- *   3. approveFinal()     — user approves preview → submit Kling final render
+ * Full lifecycle of a VideoProject:
+ *   1. generateProcessedImage() — upload photo → NanaBanana Pro → styled image
+ *   2. generatePreview()        — styled image + prompt → Seedance 2 → preview video
+ *   3. approveFinal()           — user approves preview → Kling 3.0 final render
+ *   4. handleKieCallback()      — processes Kie.ai webhook/poll results for all job types
  *
  * All DB writes go through Drizzle. All Kie.ai calls go through lib/kie.ts.
  * All Storage calls go through ./storage.ts.
@@ -21,54 +22,53 @@ import {
   type GenerationJob,
 } from "@/db/schema";
 import {
+  submitNanaBananaPro,
   submitSeedancePreview,
   submitKlingFinal,
   submitLipsync,
   getTaskStatus,
-  type KieTaskResult,
 } from "@/lib/kie";
 import { compilePrompt } from "./prompt-engine";
 import { assertTransition, type VideoProjectStatus } from "./state-machine";
-import { storeVideoFromUrl, getSignedAssetUrl } from "./storage";
+import { storeVideoFromUrl, storeImageFromUrl, getSignedAssetUrl } from "./storage";
 
-// ─── Generate Preview ─────────────────────────────────────────────────────────
+// ─── Step 1: Generate Processed Image (NanaBanana Pro) ───────────────────────
 
-export interface GeneratePreviewResult {
+export interface GenerateImageResult {
   jobId: string;
   taskId: string;
   model: string;
 }
 
 /**
- * Compile the prompt and submit a preview job to Kie.ai.
- * Returns immediately — result arrives via callback webhook.
+ * Compile the scene prompt and submit a NanaBanana Pro image-processing job.
+ * Takes the protagonist photo and transforms it into a styled image that
+ * matches the scene description. Returns immediately — result arrives via
+ * polling or webhook callback.
  */
-export async function generatePreview(
+export async function generateProcessedImage(
   projectId: string,
-): Promise<GeneratePreviewResult> {
-  // 1. Load project
+): Promise<GenerateImageResult> {
   const project = await getProjectOrThrow(projectId);
 
   if (!project.protagonistImagePath) {
-    throw new Error("Debes subir la foto del protagonista antes de generar el preview");
+    throw new Error("Sube la foto del protagonista antes de continuar.");
   }
 
-  // Accept both assets_uploaded and prompt_compiled as valid starting states.
-  // assets_uploaded → preview_queued is allowed in the state machine (skipping prompt_compiled
-  // as a separate step since prompt compilation happens inside this function).
+  // Allow starting from assets_uploaded or prompt_compiled (legacy)
   if (!["assets_uploaded", "prompt_compiled"].includes(project.status)) {
     throw new Error(
-      `No se puede generar un preview en estado: ${project.status}. ` +
-      "Sube los archivos del protagonista primero.",
+      `No se puede procesar la imagen en estado: ${project.status}. ` +
+      "Sube la foto del protagonista primero.",
     );
   }
 
-  assertTransition(project.status as VideoProjectStatus, "preview_queued");
+  assertTransition(project.status as VideoProjectStatus, "image_processing");
 
-  // 2. Get a signed URL for the protagonist image (Kie.ai needs a public URL)
+  // 1. Get signed URL for protagonist image (NanaBanana needs a public URL)
   const imageUrl = await getSignedAssetUrl(project.protagonistImagePath, 3600);
 
-  // 3. Compile prompt
+  // 2. Compile the image prompt (style + scene description → NanaBanana prompt)
   const compiled = compilePrompt({
     kind: "preview",
     mode: project.mode as "visual" | "lipsync",
@@ -81,7 +81,137 @@ export async function generatePreview(
     aspectRatio: project.aspectRatio,
   });
 
-  // 4. Save prompt version
+  // 3. Save prompt version
+  const [promptVersion] = await db
+    .insert(promptVersions)
+    .values({
+      projectId,
+      kind: "preview",
+      visualPrompt: compiled.visualPrompt,
+      negativePrompt: compiled.negativePrompt,
+      model: "nano-banana-pro",
+      inputSnapshot: { image_input: [imageUrl], aspect_ratio: project.aspectRatio },
+    })
+    .returning();
+
+  // 4. Submit to NanaBanana Pro
+  const nanaBananaPrompt = buildNanaBananaPrompt(project, compiled.visualPrompt);
+
+  const submitted = await submitNanaBananaPro({
+    prompt: nanaBananaPrompt,
+    imageInput: [imageUrl],
+    aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+    resolution: "1K",
+    outputFormat: "jpg",
+  });
+
+  // 5. Create generation job record
+  const [job] = await db
+    .insert(generationJobs)
+    .values({
+      projectId,
+      promptVersionId: promptVersion.id,
+      kind: "image",
+      status: "queued",
+      provider: "kie",
+      providerModel: submitted.modelId,
+      providerTaskId: submitted.taskId,
+      requestPayload: submitted.requestPayload,
+      startedAt: new Date(),
+    })
+    .returning();
+
+  // 6. Advance project state
+  await db
+    .update(videoProjects)
+    .set({ status: "image_processing", updatedAt: new Date() })
+    .where(eq(videoProjects.id, projectId));
+
+  return { jobId: job.id, taskId: submitted.taskId, model: submitted.modelId };
+}
+
+/**
+ * Build the NanaBanana Pro prompt — styles the protagonist for the scene.
+ * Focuses on the desired output image characteristics.
+ */
+function buildNanaBananaPrompt(
+  project: VideoProject,
+  visualPrompt: string,
+): string {
+  const parts: string[] = [
+    `Portrait of ${project.protagonistName || "the protagonist"}`,
+  ];
+
+  if (project.protagonistDescription) {
+    parts.push(project.protagonistDescription);
+  }
+
+  if (project.transformationDescription) {
+    parts.push(project.transformationDescription);
+  }
+
+  if (project.sceneDescription) {
+    parts.push(project.sceneDescription);
+  }
+
+  if (project.styleDescription) {
+    parts.push(project.styleDescription);
+  }
+
+  parts.push("cinematic portrait, professional photography, high quality, sharp focus, perfect lighting");
+
+  return parts.join(", ");
+}
+
+// ─── Step 2: Generate Preview Video (Seedance 2) ─────────────────────────────
+
+export interface GeneratePreviewResult {
+  jobId: string;
+  taskId: string;
+  model: string;
+}
+
+/**
+ * Submit a preview video job to Seedance 2 using the NanaBanana processed image.
+ * Must be called after generateProcessedImage() completes (status: image_ready).
+ * Returns immediately — result arrives via polling or webhook callback.
+ */
+export async function generatePreview(
+  projectId: string,
+): Promise<GeneratePreviewResult> {
+  const project = await getProjectOrThrow(projectId);
+
+  if (!project.protagonistImagePath) {
+    throw new Error("Foto del protagonista no encontrada.");
+  }
+
+  if (project.status !== "image_ready") {
+    throw new Error(
+      `No se puede generar el preview en estado: ${project.status}. ` +
+      "Espera a que la imagen IA esté lista primero.",
+    );
+  }
+
+  assertTransition(project.status as VideoProjectStatus, "preview_queued");
+
+  // Use the NanaBanana processed image as first frame (fallback to original)
+  const firstFrameUrl = project.processedImageUrl
+    ?? await getSignedAssetUrl(project.protagonistImagePath, 3600);
+
+  // Compile prompt
+  const compiled = compilePrompt({
+    kind: "preview",
+    mode: project.mode as "visual" | "lipsync",
+    protagonistName: project.protagonistName,
+    protagonistDescription: project.protagonistDescription,
+    transformationDescription: project.transformationDescription,
+    sceneDescription: project.sceneDescription,
+    styleDescription: project.styleDescription,
+    durationSeconds: project.durationSeconds,
+    aspectRatio: project.aspectRatio,
+  });
+
+  // Save prompt version
   const [promptVersion] = await db
     .insert(promptVersions)
     .values({
@@ -90,20 +220,20 @@ export async function generatePreview(
       visualPrompt: compiled.visualPrompt,
       negativePrompt: compiled.negativePrompt,
       model: compiled.model,
-      inputSnapshot: { ...compiled.modelInput, first_frame_url: imageUrl },
+      inputSnapshot: { ...compiled.modelInput, first_frame_url: firstFrameUrl },
     })
     .returning();
 
-  // 5. Submit to Kie.ai (lipsync vs visual)
+  // Submit to Kie.ai (lipsync vs visual)
   let submitted: { taskId: string; modelId: string; requestPayload: Record<string, unknown> };
 
   if (project.mode === "lipsync" && project.audioPath) {
     const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
-    submitted = await submitLipsync({ imageUrl, audioUrl });
+    submitted = await submitLipsync({ imageUrl: firstFrameUrl, audioUrl });
   } else {
     submitted = await submitSeedancePreview({
       prompt: compiled.visualPrompt,
-      firstFrameUrl: imageUrl,
+      firstFrameUrl,
       aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
       resolution: "480p",
       durationSeconds: project.durationSeconds,
@@ -111,7 +241,7 @@ export async function generatePreview(
     });
   }
 
-  // 6. Create generation job record
+  // Create generation job record
   const [job] = await db
     .insert(generationJobs)
     .values({
@@ -127,7 +257,7 @@ export async function generatePreview(
     })
     .returning();
 
-  // 7. Advance project state
+  // Advance project state
   await db
     .update(videoProjects)
     .set({ status: "preview_queued", updatedAt: new Date() })
@@ -147,8 +277,8 @@ export interface CallbackPayload {
 }
 
 /**
- * Process an incoming Kie.ai webhook callback.
- * Finds the matching job, stores the video, and advances the project state.
+ * Process an incoming Kie.ai webhook callback (or polling result).
+ * Handles all job kinds: image, preview, final.
  */
 export async function handleKieCallback(payload: CallbackPayload): Promise<void> {
   // 1. Find the job by taskId
@@ -163,9 +293,9 @@ export async function handleKieCallback(payload: CallbackPayload): Promise<void>
     return;
   }
 
-  // Guard against double-processing (e.g. webhook + polling race)
+  // Guard against double-processing
   if (job.status === "ready" || job.status === "failed") {
-    console.warn(`[kie-callback] Job ${job.id} already processed (status: ${job.status}), skipping`);
+    console.warn(`[kie-callback] Job ${job.id} already processed (${job.status}), skipping`);
     return;
   }
 
@@ -180,62 +310,129 @@ export async function handleKieCallback(payload: CallbackPayload): Promise<void>
   }
 
   try {
-    // 2. Download and store the video in Supabase Storage
-    const stored = await storeVideoFromUrl({
-      projectId: job.projectId,
-      jobId: job.id,
-      kind: job.kind === "preview" ? "preview_video" : "final_video",
-      sourceUrl: payload.resultUrl,
-    });
-
-    // 3. Save asset record
-    await db.insert(videoAssets).values({
-      projectId: job.projectId,
-      jobId: job.id,
-      kind: job.kind === "preview" ? "preview_video" : "final_video",
-      storagePath: stored.storagePath,
-      publicUrl: stored.publicUrl,
-      mimeType: stored.mimeType,
-      sizeBytes: stored.sizeBytes,
-    });
-
-    // 4. Update job to ready
-    await db
-      .update(generationJobs)
-      .set({
-        status: "ready",
-        callbackPayload: payload.raw,
-        resultVideoUrl: payload.resultUrl,
-        storedVideoPath: stored.storagePath,
-        completedAt: new Date(),
-      })
-      .where(eq(generationJobs.id, job.id));
-
-    // 5. Advance project state
-    const nextStatus = job.kind === "preview" ? "preview_ready" : "final_ready";
-    const videoUrlField =
-      job.kind === "preview"
-        ? { previewVideoUrl: stored.publicUrl }
-        : { finalVideoUrl: stored.publicUrl };
-
-    const projectNextStatus = job.kind === "preview" ? "awaiting_approval" : "final_ready";
-
-    await db
-      .update(videoProjects)
-      .set({
-        status: projectNextStatus,
-        ...videoUrlField,
-        updatedAt: new Date(),
-      })
-      .where(eq(videoProjects.id, job.projectId));
-
-    console.log(
-      `[kie-callback] Job ${job.id} (${job.kind}) completed → project ${job.projectId} → ${projectNextStatus}`,
-    );
+    if (job.kind === "image") {
+      await handleImageJobSuccess(job, payload);
+    } else {
+      await handleVideoJobSuccess(job, payload);
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await handleJobFailure(job, msg, payload.raw);
   }
+}
+
+/**
+ * Process a completed NanaBanana Pro image job.
+ * Stores the processed image and advances project to image_ready.
+ */
+async function handleImageJobSuccess(
+  job: GenerationJob,
+  payload: CallbackPayload,
+): Promise<void> {
+  // Download and store the processed image in Supabase Assets
+  const stored = await storeImageFromUrl({
+    projectId: job.projectId,
+    jobId: job.id,
+    sourceUrl: payload.resultUrl!,
+  });
+
+  // Save asset record
+  await db.insert(videoAssets).values({
+    projectId: job.projectId,
+    jobId: job.id,
+    kind: "processed_image",
+    storagePath: stored.storagePath,
+    publicUrl: stored.publicUrl,
+    mimeType: stored.mimeType,
+    sizeBytes: stored.sizeBytes,
+  });
+
+  // Update job to ready
+  await db
+    .update(generationJobs)
+    .set({
+      status: "ready",
+      callbackPayload: payload.raw,
+      resultVideoUrl: payload.resultUrl,
+      storedVideoPath: stored.storagePath,
+      completedAt: new Date(),
+    })
+    .where(eq(generationJobs.id, job.id));
+
+  // Advance project: store processed image URL, move to image_ready
+  await db
+    .update(videoProjects)
+    .set({
+      status: "image_ready",
+      processedImagePath: stored.storagePath,
+      processedImageUrl: stored.publicUrl,
+      updatedAt: new Date(),
+    })
+    .where(eq(videoProjects.id, job.projectId));
+
+  console.log(
+    `[kie-callback] Image job ${job.id} completed → project ${job.projectId} → image_ready`,
+  );
+}
+
+/**
+ * Process a completed preview or final video job.
+ * Stores the video and advances project state.
+ */
+async function handleVideoJobSuccess(
+  job: GenerationJob,
+  payload: CallbackPayload,
+): Promise<void> {
+  // Download and store the video in Supabase Storage
+  const stored = await storeVideoFromUrl({
+    projectId: job.projectId,
+    jobId: job.id,
+    kind: job.kind === "preview" ? "preview_video" : "final_video",
+    sourceUrl: payload.resultUrl!,
+  });
+
+  // Save asset record
+  await db.insert(videoAssets).values({
+    projectId: job.projectId,
+    jobId: job.id,
+    kind: job.kind === "preview" ? "preview_video" : "final_video",
+    storagePath: stored.storagePath,
+    publicUrl: stored.publicUrl,
+    mimeType: stored.mimeType,
+    sizeBytes: stored.sizeBytes,
+  });
+
+  // Update job to ready
+  await db
+    .update(generationJobs)
+    .set({
+      status: "ready",
+      callbackPayload: payload.raw,
+      resultVideoUrl: payload.resultUrl,
+      storedVideoPath: stored.storagePath,
+      completedAt: new Date(),
+    })
+    .where(eq(generationJobs.id, job.id));
+
+  // Advance project state
+  const projectNextStatus = job.kind === "preview" ? "awaiting_approval" : "final_ready";
+  const videoUrlField =
+    job.kind === "preview"
+      ? { previewVideoUrl: stored.publicUrl }
+      : { finalVideoUrl: stored.publicUrl };
+
+  await db
+    .update(videoProjects)
+    .set({
+      status: projectNextStatus,
+      ...videoUrlField,
+      updatedAt: new Date(),
+    })
+    .where(eq(videoProjects.id, job.projectId));
+
+  console.log(
+    `[kie-callback] ${job.kind} job ${job.id} completed → project ${job.projectId} → ${projectNextStatus}`,
+  );
 }
 
 // ─── Approve Preview → Submit Final ──────────────────────────────────────────
@@ -264,15 +461,9 @@ export async function approveFinal(
     .set({ status: "approved_for_final", updatedAt: new Date() })
     .where(eq(videoProjects.id, projectId));
 
-  // Get the last preview prompt version to reuse inputs
-  const [lastPromptVersion] = await db
-    .select()
-    .from(promptVersions)
-    .where(eq(promptVersions.projectId, projectId))
-    .orderBy(promptVersions.createdAt)
-    .limit(1);
-
-  const imageUrl = await getSignedAssetUrl(project.protagonistImagePath, 3600);
+  // Use processed image if available, fall back to original
+  const imageUrl = project.processedImageUrl
+    ?? await getSignedAssetUrl(project.protagonistImagePath, 3600);
 
   // Compile final prompt (higher quality suffix)
   const compiled = compilePrompt({
@@ -335,30 +526,69 @@ export async function approveFinal(
   return { jobId: job.id, taskId: submitted.taskId };
 }
 
-// ─── Regenerate Preview ───────────────────────────────────────────────────────
+// ─── Regenerate Image (back to image_processing) ─────────────────────────────
 
 /**
- * Reset project back to prompt_compiled so the user can tweak inputs and
- * generate a new preview. Increments the regeneration counter.
+ * Re-submit a NanaBanana Pro image job with the current inputs.
+ * Increments the regeneration counter.
+ */
+export async function regenerateImage(projectId: string): Promise<GenerateImageResult> {
+  const project = await getProjectOrThrow(projectId);
+
+  if (project.regenerationCount >= project.maxRegenerations) {
+    throw new Error(
+      `Límite de regeneraciones alcanzado (${project.maxRegenerations}). ` +
+      "Contacta con soporte para aumentar tu límite.",
+    );
+  }
+
+  if (!["image_ready", "image_failed", "preview_ready", "awaiting_approval"].includes(project.status)) {
+    throw new Error(`No se puede regenerar la imagen en estado: ${project.status}`);
+  }
+
+  // Reset processed image and increment counter
+  await db
+    .update(videoProjects)
+    .set({
+      status: "assets_uploaded",
+      processedImagePath: null,
+      processedImageUrl: null,
+      previewVideoUrl: null,
+      regenerationCount: project.regenerationCount + 1,
+      updatedAt: new Date(),
+    })
+    .where(eq(videoProjects.id, projectId));
+
+  // Re-fetch updated project and submit new image job
+  return generateProcessedImage(projectId);
+}
+
+// ─── Regenerate Preview (keep image, redo video) ──────────────────────────────
+
+/**
+ * Reset project back to image_ready so the user can tweak inputs and
+ * generate a new preview video (keeping the processed image).
  */
 export async function regeneratePreview(projectId: string): Promise<void> {
   const project = await getProjectOrThrow(projectId);
 
   if (project.regenerationCount >= project.maxRegenerations) {
     throw new Error(
-      `Maximum regenerations reached (${project.maxRegenerations}). ` +
-        "Contact support to increase your limit.",
+      `Límite de regeneraciones alcanzado (${project.maxRegenerations}). ` +
+        "Contacta con soporte para aumentar tu límite.",
     );
   }
 
-  assertTransition(project.status, "prompt_compiled");
+  if (!["awaiting_approval", "preview_ready", "preview_failed"].includes(project.status)) {
+    throw new Error(`No se puede regenerar el preview en estado: ${project.status}`);
+  }
 
   await db
     .update(videoProjects)
     .set({
-      status: "prompt_compiled",
-      regenerationCount: project.regenerationCount + 1,
+      status: "image_ready",
       previewVideoUrl: null,
+      regenerationCount: project.regenerationCount + 1,
       updatedAt: new Date(),
     })
     .where(eq(videoProjects.id, projectId));
@@ -382,13 +612,10 @@ export async function publishProject(projectId: string): Promise<void> {
  * Check Kie.ai for the latest queued job on this project and, if complete,
  * process the result exactly as the webhook callback would.
  *
- * This makes the system work without requiring the KIE_CALLBACK_URL webhook —
- * the frontend polling calls GET /api/video-projects/[id] which calls this.
- *
- * Returns true if the job was processed (status changed), false otherwise.
+ * Returns true if a job was processed (status changed), false otherwise.
  */
 export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> {
-  // Find the latest job that is still waiting for a callback
+  // Find the latest job that is still waiting
   const [job] = await db
     .select()
     .from(generationJobs)
@@ -413,8 +640,7 @@ export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> 
   // Not finished yet
   if (["waiting", "queuing", "generating"].includes(kieStatus.status)) return false;
 
-  // Atomically claim the job to avoid double-processing when multiple
-  // requests poll at the same time. Only succeeds if status is still "queued".
+  // Atomically claim the job to prevent double-processing
   const [claimed] = await db
     .update(generationJobs)
     .set({ status: "processing" })
@@ -426,7 +652,7 @@ export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> 
     )
     .returning();
 
-  if (!claimed) return false; // Another concurrent request already claimed it
+  if (!claimed) return false; // Another request already claimed it
 
   // Delegate to the same handler the webhook uses
   await handleKieCallback({
@@ -468,11 +694,14 @@ async function handleJobFailure(
     })
     .where(eq(generationJobs.id, job.id));
 
-  const failStatus = job.kind === "preview" ? "preview_failed" : "final_failed";
+  const failStatus =
+    job.kind === "image"   ? "image_failed"   :
+    job.kind === "preview" ? "preview_failed" : "final_failed";
+
   await db
     .update(videoProjects)
     .set({ status: failStatus, updatedAt: new Date() })
     .where(eq(videoProjects.id, job.projectId));
 
-  console.error(`[kie-callback] Job ${job.id} failed: ${errorMessage}`);
+  console.error(`[kie-callback] Job ${job.id} (${job.kind}) failed: ${errorMessage}`);
 }

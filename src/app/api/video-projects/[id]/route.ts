@@ -39,7 +39,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
   // If the project is waiting for a Kie.ai result, poll and sync now.
   // This makes the system work even when the KIE_CALLBACK_URL webhook is not configured.
-  const processingStates = ["preview_queued", "preview_processing", "final_queued", "final_processing"];
+  const processingStates = [
+    "image_processing",
+    "preview_queued", "preview_processing",
+    "final_queued", "final_processing",
+  ];
   if (processingStates.includes(project.status)) {
     try {
       const synced = await pollAndSyncJobStatus(id);

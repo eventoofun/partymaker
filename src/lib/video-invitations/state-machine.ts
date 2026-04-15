@@ -8,6 +8,9 @@ export type VideoProjectStatus =
   | "draft"
   | "assets_uploaded"
   | "prompt_compiled"
+  | "image_processing"    // NanaBanana Pro running
+  | "image_ready"         // NanaBanana done — user sees processed image
+  | "image_failed"        // NanaBanana failed
   | "preview_queued"
   | "preview_processing"
   | "preview_ready"
@@ -23,18 +26,21 @@ export type VideoProjectStatus =
 // Valid transitions: from → set of allowed next states
 const TRANSITIONS: Record<VideoProjectStatus, VideoProjectStatus[]> = {
   draft:              ["assets_uploaded"],
-  assets_uploaded:    ["prompt_compiled", "preview_queued", "draft"],
-  prompt_compiled:    ["preview_queued", "assets_uploaded"],
+  assets_uploaded:    ["image_processing", "draft"],
+  prompt_compiled:    ["image_processing", "assets_uploaded"],   // legacy compat
+  image_processing:   ["image_ready", "image_failed"],
+  image_ready:        ["preview_queued", "image_processing"],    // approve → video | retry image
+  image_failed:       ["image_processing", "assets_uploaded"],   // retry or go back
   preview_queued:     ["preview_processing"],
   preview_processing: ["preview_ready", "preview_failed"],
-  preview_ready:      ["awaiting_approval", "prompt_compiled"],   // prompt_compiled = regenerate
-  preview_failed:     ["prompt_compiled"],                        // retry by recompiling
-  awaiting_approval:  ["approved_for_final", "prompt_compiled"],  // prompt_compiled = regenerate
+  preview_ready:      ["awaiting_approval", "image_ready"],      // image_ready = regenerate image
+  preview_failed:     ["image_ready"],                           // retry from image step
+  awaiting_approval:  ["approved_for_final", "image_ready"],     // image_ready = full regenerate
   approved_for_final: ["final_queued"],
   final_queued:       ["final_processing"],
   final_processing:   ["final_ready", "final_failed"],
   final_ready:        ["published"],
-  final_failed:       ["approved_for_final"],                     // retry final render
+  final_failed:       ["approved_for_final"],                    // retry final render
   published:          [],
 };
 
@@ -65,6 +71,7 @@ export function isPublished(status: VideoProjectStatus): boolean {
 /** Returns true when the project is actively being processed by Kie.ai. */
 export function isProcessing(status: VideoProjectStatus): boolean {
   return (
+    status === "image_processing" ||
     status === "preview_queued" ||
     status === "preview_processing" ||
     status === "final_queued" ||

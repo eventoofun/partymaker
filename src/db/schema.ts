@@ -910,6 +910,9 @@ export const videoProjectStatusEnum = pgEnum("video_project_status", [
   "draft",
   "assets_uploaded",
   "prompt_compiled",
+  "image_processing",
+  "image_ready",
+  "image_failed",
   "preview_queued",
   "preview_processing",
   "preview_ready",
@@ -924,7 +927,7 @@ export const videoProjectStatusEnum = pgEnum("video_project_status", [
 ]);
 
 export const generationJobKindEnum = pgEnum("generation_job_kind", [
-  "preview", "final",
+  "image", "preview", "final",
 ]);
 
 export const generationJobStatusEnum = pgEnum("generation_job_status", [
@@ -932,7 +935,7 @@ export const generationJobStatusEnum = pgEnum("generation_job_status", [
 ]);
 
 export const videoAssetKindEnum = pgEnum("video_asset_kind", [
-  "protagonist_image", "audio", "preview_video", "final_video", "thumbnail",
+  "protagonist_image", "audio", "processed_image", "preview_video", "final_video", "thumbnail",
 ]);
 
 // ── Proyectos de videoinvitación ─────────────────────────────────────────────
@@ -958,6 +961,10 @@ export const videoProjects = pgTable("video_projects", {
   protagonistImageUrl:  text("protagonist_image_url"),   // public URL
   audioPath:            text("audio_path"),
   audioUrl:             text("audio_url"),
+
+  // NanaBanana Pro processed image (output of image step, input of video step)
+  processedImagePath: text("processed_image_path"),
+  processedImageUrl:  text("processed_image_url"),
 
   // Estado de la máquina de estados
   status: videoProjectStatusEnum("status").default("draft").notNull(),

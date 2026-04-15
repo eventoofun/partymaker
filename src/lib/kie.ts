@@ -102,6 +102,8 @@ export interface SubmittedTask {
 /**
  * Submit any Kie.ai task. Returns the taskId immediately.
  * Kie.ai will POST the result to KIE_CALLBACK_URL when done.
+ *
+ * NOTE: The Kie.ai API uses "model" (not "modelId") as the field name.
  */
 export async function submitTask(
   opts: SubmitTaskOptions,
@@ -110,7 +112,7 @@ export async function submitTask(
     opts.callbackUrl ?? process.env.KIE_CALLBACK_URL ?? "";
 
   const body: Record<string, unknown> = {
-    modelId: opts.modelId,
+    model: opts.modelId,   // Kie.ai API field is "model", not "modelId"
     input: opts.input,
   };
   if (callBackUrl) body.callBackUrl = callBackUrl;
@@ -145,6 +147,45 @@ export async function getTaskStatus(taskId: string): Promise<KieTaskResult> {
     errorMessage: data.errorMessage,
     raw: data as Record<string, unknown>,
   };
+}
+
+// ─── NanaBanana Pro — Image processing (protagonist photo → styled image) ────
+
+export const MODEL_NANO_BANANA_PRO = "nano-banana-pro";
+
+export interface NanaBananaInput {
+  /** Describe the desired output image (scene, style, mood) */
+  prompt: string;
+  /** Input images — protagonist photo URL goes here */
+  imageInput?: string[];
+  /** Output aspect ratio — default 9:16 for portrait invitations */
+  aspectRatio?: "9:16" | "16:9" | "1:1" | "2:3" | "3:4" | "4:5";
+  /** Output resolution */
+  resolution?: "1K" | "2K" | "4K";
+  /** Output format */
+  outputFormat?: "png" | "jpg";
+}
+
+/**
+ * Submit a NanaBanana Pro image generation job.
+ * Takes the protagonist photo and transforms it into a styled image
+ * that will be used as the first frame for the video models.
+ */
+export async function submitNanaBananaPro(
+  input: NanaBananaInput,
+  callbackUrl?: string,
+): Promise<SubmittedTask> {
+  return submitTask({
+    modelId: MODEL_NANO_BANANA_PRO,
+    input: {
+      prompt: input.prompt,
+      image_input: input.imageInput ?? [],
+      aspect_ratio: input.aspectRatio ?? "9:16",
+      resolution: input.resolution ?? "1K",
+      output_format: input.outputFormat ?? "jpg",
+    },
+    callbackUrl,
+  });
 }
 
 // ─── Seedance 2.0 — Preview video (image → video, built-in audio) ─────────────

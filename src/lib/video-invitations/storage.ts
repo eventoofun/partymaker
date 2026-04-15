@@ -130,6 +130,70 @@ export async function storeVideoFromUrl(opts: {
   };
 }
 
+// ─── Store processed image from NanaBanana Pro → Supabase ────────────────────
+
+export interface StoredImage {
+  storagePath: string;
+  publicUrl: string;
+  sizeBytes: number;
+  mimeType: string;
+}
+
+/**
+ * Download a processed image from Kie.ai's CDN and store it permanently
+ * in the event-assets bucket (private, accessed via signed URL).
+ */
+export async function storeImageFromUrl(opts: {
+  projectId: string;
+  jobId: string;
+  sourceUrl: string;
+}): Promise<StoredImage> {
+  const admin = createAdminClient();
+
+  // 1. Download from Kie.ai
+  const response = await fetch(opts.sourceUrl);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download image from Kie.ai: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const buffer = await response.arrayBuffer();
+  const sizeBytes = buffer.byteLength;
+  const mimeType = response.headers.get("content-type") ?? "image/jpeg";
+  const ext = mimeType.includes("png") ? "png" : "jpg";
+
+  const storagePath = `video-projects/${opts.projectId}/processed-image-${opts.jobId}.${ext}`;
+
+  // 2. Upload to event-assets bucket (private)
+  const { error } = await admin.storage
+    .from(ASSETS_BUCKET)
+    .upload(storagePath, buffer, {
+      contentType: mimeType,
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Failed to upload processed image to Supabase: ${error.message}`);
+  }
+
+  // 3. Get a long-lived signed URL (7 days) so the video models can access it
+  const { data: signedData, error: signError } = await admin.storage
+    .from(ASSETS_BUCKET)
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+
+  if (signError || !signedData) {
+    throw new Error(`Failed to sign processed image URL: ${signError?.message}`);
+  }
+
+  return {
+    storagePath,
+    publicUrl: signedData.signedUrl,
+    sizeBytes,
+    mimeType,
+  };
+}
+
 /**
  * Delete all storage objects for a project (cleanup on project deletion).
  */
