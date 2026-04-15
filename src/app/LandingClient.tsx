@@ -920,17 +920,18 @@ export default function LandingClient() {
           <ChevronDown size={15} />
         </div>
 
-        {/* Genie DJ — hero decoration */}
+        {/* Genie DJ — hero decoration, centrado al fondo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/genio/genio_dj.png"
           alt=""
           aria-hidden="true"
           style={{
-            position: "absolute", bottom: 0, left: "4%",
-            width: "200px", objectFit: "contain",
+            position: "absolute", bottom: 0,
+            left: "50%", transform: "translateX(-50%)",
+            width: "260px", objectFit: "contain",
             animation: "genieLevitate 4s ease-in-out infinite",
-            opacity: 0.5, pointerEvents: "none", zIndex: 0,
+            opacity: 0.45, pointerEvents: "none", zIndex: 0,
           }}
         />
       </section>
@@ -960,20 +961,7 @@ export default function LandingClient() {
       </section>
 
       {/* ══ CLUSTER HUB ══════════════════════════════════════════════════════ */}
-      <section className="section" id="celebraciones" style={{ position: "relative", overflow: "hidden" }}>
-        {/* Genie DJ2 — cluster section decoration */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/genio/genio_dj2.png"
-          alt=""
-          aria-hidden="true"
-          style={{
-            position: "absolute", right: "-30px", top: "50%", transform: "translateY(-50%)",
-            width: "180px", objectFit: "contain",
-            animation: "genieLevitate 3.6s ease-in-out infinite 0.5s",
-            opacity: 0.45, pointerEvents: "none",
-          }}
-        />
+      <section className="section" id="celebraciones">
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "52px" }}>
             <SectionLabel>Todas las celebraciones</SectionLabel>
@@ -999,17 +987,18 @@ export default function LandingClient() {
         background: "linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-elevated) 50%, var(--surface-bg) 100%)",
         position: "relative", overflow: "hidden",
       }}>
-        {/* Genie Bodas — how it works decoration */}
+        {/* Genie Bodas — how it works decoration, centrado derecho */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/genio/genio_bodas.png"
           alt=""
           aria-hidden="true"
           style={{
-            position: "absolute", left: "-20px", bottom: "60px",
-            width: "170px", objectFit: "contain",
+            position: "absolute", right: "5%",
+            top: "50%", transform: "translateY(-50%)",
+            width: "195px", objectFit: "contain",
             animation: "genieLevitate 4.2s ease-in-out infinite 1s",
-            opacity: 0.4, pointerEvents: "none",
+            opacity: 0.45, pointerEvents: "none",
           }}
         />
         <div className="container container--narrow">
@@ -1068,17 +1057,18 @@ export default function LandingClient() {
 
       {/* ══ FEATURES ═════════════════════════════════════════════════════════ */}
       <section className="section" id="funcionalidades" style={{ position: "relative", overflow: "hidden" }}>
-        {/* Genie Bautizos — features decoration */}
+        {/* Genie Bautizos — features decoration, centrado izquierdo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/genio/genio_bautizos.png"
           alt=""
           aria-hidden="true"
           style={{
-            position: "absolute", right: "-25px", top: "30%",
-            width: "175px", objectFit: "contain",
+            position: "absolute", left: "5%",
+            top: "50%", transform: "translateY(-50%)",
+            width: "220px", objectFit: "contain",
             animation: "genieLevitate 3.9s ease-in-out infinite 0.8s",
-            opacity: 0.42, pointerEvents: "none",
+            opacity: 0.5, pointerEvents: "none",
           }}
         />
         <div className="container">
@@ -1115,8 +1105,22 @@ export default function LandingClient() {
           background: "radial-gradient(circle, rgba(0,194,209,0.1) 0%, transparent 70%)",
           pointerEvents: "none",
         }} />
-        <div className="container" style={{ display: "flex", alignItems: "center", gap: "60px" }} >
-          <div style={{ flex: 1 }}>
+        {/* Genie Babyshower — torso sobremonado, piernas cortadas por overflow:hidden */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio_babyshower.png"
+          alt="El Genio"
+          aria-hidden="true"
+          style={{
+            position: "absolute", bottom: "-90px", right: "8%",
+            width: "340px", objectFit: "contain",
+            animation: "genieLevitate 3.5s ease-in-out infinite",
+            filter: "drop-shadow(0 0 30px rgba(0,194,209,0.4))",
+            pointerEvents: "none", zIndex: 2,
+          }}
+        />
+        <div className="container" style={{ display: "flex", alignItems: "center", position: "relative", zIndex: 1 }}>
+          <div style={{ flex: 1, maxWidth: "600px" }}>
             <SectionLabel>El Genio te espera</SectionLabel>
             <h2 style={{ marginBottom: "18px", color: "white" }}>
               Habla con el Genio y crea tu{" "}
@@ -1134,34 +1138,23 @@ export default function LandingClient() {
               </Link>
             </div>
           </div>
-          <div style={{ flexShrink: 0 }} className="genio-orb">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/genio/genio_babyshower.png"
-              alt="El Genio"
-              style={{
-                width: "180px", objectFit: "contain",
-                animation: "genieLevitate 3.5s ease-in-out infinite",
-                filter: "drop-shadow(0 0 24px rgba(0,194,209,0.35))",
-              }}
-            />
-          </div>
         </div>
       </section>
 
       {/* ══ TESTIMONIALS ═════════════════════════════════════════════════════ */}
       <section className="section" style={{ position: "relative", overflow: "hidden" }}>
-        {/* Genie Comunion — testimonials decoration */}
+        {/* Genie Comunion — testimonials decoration, derecho centrado */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/genio/genio_comunion.png"
           alt=""
           aria-hidden="true"
           style={{
-            position: "absolute", left: "-15px", bottom: "30px",
-            width: "160px", objectFit: "contain",
+            position: "absolute", right: "3%",
+            top: "50%", transform: "translateY(-50%)",
+            width: "165px", objectFit: "contain",
             animation: "genieLevitate 4.5s ease-in-out infinite 1.5s",
-            opacity: 0.4, pointerEvents: "none",
+            opacity: 0.5, pointerEvents: "none",
           }}
         />
         <div className="container">
