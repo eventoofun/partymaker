@@ -172,22 +172,31 @@ export async function getTaskStatus(taskId: string): Promise<KieTaskResult> {
         // resultJson is a plain URL string
         resultUrl = parsed;
       } else if (Array.isArray(parsed)) {
-        // resultJson is an array — pick first item's url-like field
-        const first = parsed[0] as Record<string, unknown> | undefined;
-        if (first) {
+        // resultJson is an array of URLs or objects
+        const first = parsed[0];
+        if (typeof first === "string") {
+          resultUrl = first;
+        } else if (first && typeof first === "object") {
+          const obj = first as Record<string, unknown>;
           resultUrl =
-            (first.url as string | undefined) ??
-            (first.resourceWithoutWatermark as string | undefined) ??
-            (first.coverUrl as string | undefined) ??
-            (first.resource_without_watermark as string | undefined);
+            (obj.url as string | undefined) ??
+            (obj.resourceWithoutWatermark as string | undefined) ??
+            (obj.resource_without_watermark as string | undefined) ??
+            (obj.coverUrl as string | undefined);
         }
       } else if (typeof parsed === "object" && parsed !== null) {
         const obj = parsed as Record<string, unknown>;
-        resultUrl =
-          (obj.url as string | undefined) ??
-          (obj.resourceWithoutWatermark as string | undefined) ??
-          (obj.coverUrl as string | undefined) ??
-          (obj.resource_without_watermark as string | undefined);
+        // NanaBanana Pro returns { resultUrls: ["https://..."] }
+        const resultUrls = obj.resultUrls;
+        if (Array.isArray(resultUrls) && typeof resultUrls[0] === "string") {
+          resultUrl = resultUrls[0];
+        } else {
+          resultUrl =
+            (obj.url as string | undefined) ??
+            (obj.resourceWithoutWatermark as string | undefined) ??
+            (obj.resource_without_watermark as string | undefined) ??
+            (obj.coverUrl as string | undefined);
+        }
       }
     } catch {
       console.error("[kie] Failed to parse resultJson:", data.resultJson);
