@@ -7,7 +7,7 @@
  * Models used:
  *   Preview  → Seedance 2.0  (bytedance/seedance-2)   — fast, built-in audio, native 9:16
  *   Preview  → Wan 2.5       (wan2.5/image-to-video)  — alternative preview model
- *   Final    → Kling 3.0     (kling-v3)                — premium quality
+ *   Final    → Wan 2.7       (wan2.7/image-to-video)  — final render at 1080p
  *   Lipsync  → InfiniteTalk  (infinitetalk/from-audio)
  *
  * Env vars: KIE_API_KEY, KIE_API_BASE_URL, KIE_CALLBACK_URL, KIE_WEBHOOK_SECRET
@@ -332,8 +332,48 @@ export async function submitWan25Preview(
   });
 }
 
-// ─── Kling 3.0 — Final video (high quality render) ───────────────────────────
+// ─── Wan 2.7 — Final video (high quality render at 1080p) ────────────────────
 
+export const MODEL_WAN27_FINAL = "wan2.7/image-to-video";
+
+export interface Wan27Input {
+  prompt: string;
+  negativePrompt?: string;
+  /** Image URL to use as the first frame */
+  firstFrameUrl: string;
+  /** "9:16" for portrait, "16:9" for landscape */
+  aspectRatio?: "9:16" | "16:9" | "1:1";
+  /** Duration in seconds */
+  durationSeconds?: number;
+  /** Output resolution — use "1080p" for final renders */
+  resolution?: "480p" | "720p" | "1080p";
+}
+
+/**
+ * Submit a Wan 2.7 final render job at 1080p.
+ * Used after the user approves the preview.
+ */
+export async function submitWan27Final(
+  input: Wan27Input,
+  callbackUrl?: string,
+): Promise<SubmittedTask> {
+  return submitTask({
+    modelId: MODEL_WAN27_FINAL,
+    input: {
+      prompt: input.prompt,
+      negative_prompt: input.negativePrompt ?? "blurry, low quality, artifacts",
+      image_url: input.firstFrameUrl,
+      aspect_ratio: input.aspectRatio ?? "9:16",
+      duration: input.durationSeconds ?? 8,
+      resolution: input.resolution ?? "1080p",
+    },
+    callbackUrl,
+  });
+}
+
+// ─── Kling 3.0 — Legacy (kept for reference) ─────────────────────────────────
+
+/** @deprecated Use submitWan27Final instead */
 export const MODEL_KLING_FINAL = "kling-v3";
 
 export interface KlingInput {
@@ -342,14 +382,10 @@ export interface KlingInput {
   firstFrameUrl: string;
   aspectRatio?: "9:16" | "16:9" | "1:1";
   durationSeconds?: number;
-  /** "std" = standard, "pro" = higher quality */
   mode?: "std" | "pro";
 }
 
-/**
- * Submit a Kling 3.0 final render job.
- * Higher quality than Seedance/Wan — used after the user approves the preview.
- */
+/** @deprecated Use submitWan27Final instead */
 export async function submitKlingFinal(
   input: KlingInput,
   callbackUrl?: string,

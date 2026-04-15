@@ -4,7 +4,7 @@
  * Full lifecycle of a VideoProject:
  *   1. generateProcessedImage() — upload photo → NanaBanana Pro → styled image
  *   2. generatePreview()        — styled image + prompt → Seedance 2 → preview video
- *   3. approveFinal()           — user approves preview → Kling 3.0 final render
+ *   3. approveFinal()           — user approves preview → Wan 2.7 final render at 1080p
  *   4. handleKieCallback()      — processes Kie.ai webhook/poll results for all job types
  *
  * All DB writes go through Drizzle. All Kie.ai calls go through lib/kie.ts.
@@ -24,7 +24,7 @@ import {
 import {
   submitNanaBananaPro,
   submitSeedancePreview,
-  submitKlingFinal,
+  submitWan27Final,
   submitLipsync,
   getTaskStatus,
 } from "@/lib/kie";
@@ -452,7 +452,7 @@ export interface ApproveFinalResult {
 }
 
 /**
- * User approved the preview. Submit a Kling 3.0 final render job.
+ * User approved the preview. Submit a Wan 2.7 final render job at 1080p.
  */
 export async function approveFinal(
   projectId: string,
@@ -500,14 +500,14 @@ export async function approveFinal(
     })
     .returning();
 
-  // Submit to Kling 3.0
-  const submitted = await submitKlingFinal({
+  // Submit to Wan 2.7 at 1080p
+  const submitted = await submitWan27Final({
     prompt: compiled.visualPrompt,
     negativePrompt: compiled.negativePrompt,
     firstFrameUrl: imageUrl,
     aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
     durationSeconds: project.durationSeconds,
-    mode: "std",
+    resolution: "1080p",
   });
 
   // Create job record
