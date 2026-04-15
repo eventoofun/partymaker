@@ -637,7 +637,7 @@ export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> 
     return false; // Kie.ai unreachable — try again next poll
   }
 
-  // Not finished yet
+  // Not finished yet — kieStatus.status is already normalized by getTaskStatus
   if (["waiting", "queuing", "generating"].includes(kieStatus.status)) return false;
 
   // Atomically claim the job to prevent double-processing

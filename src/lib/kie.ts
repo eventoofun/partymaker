@@ -132,19 +132,73 @@ export async function submitTask(
 // ─── Status polling (fallback for local dev without ngrok) ───────────────────
 
 export async function getTaskStatus(taskId: string): Promise<KieTaskResult> {
+  // Kie.ai recordInfo response shape:
+  //   data.state      — "waiting" | "queuing" | "generating" | "success" | "fail"
+  //   data.failMsg    — error string when state === "fail"
+  //   data.resultJson — JSON string (or array) containing result URLs when state === "success"
   const data = await kieGet<{
     taskId: string;
-    status: string;
-    resultUrl?: string;
-    errorMessage?: string;
+    state?: string;           // Kie.ai uses "state", not "status"
+    failMsg?: string | null;  // Kie.ai uses "failMsg", not "errorMessage"
+    resultJson?: string | unknown[] | null;
     [key: string]: unknown;
   }>(`/api/v1/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`);
 
+  // Normalize state → our KieTaskStatus
+  const rawState = (data.state ?? "waiting") as string;
+  let status: KieTaskStatus;
+  if (rawState === "success") {
+    status = "success";
+  } else if (rawState === "fail" || rawState === "failed") {
+    status = "fail";
+  } else if (rawState === "generating") {
+    status = "generating";
+  } else if (rawState === "queuing") {
+    status = "queuing";
+  } else {
+    status = "waiting";
+  }
+
+  // Extract result URL from resultJson (can be a JSON string, array, or object)
+  let resultUrl: string | undefined;
+  if (status === "success" && data.resultJson) {
+    try {
+      const parsed =
+        typeof data.resultJson === "string"
+          ? JSON.parse(data.resultJson)
+          : data.resultJson;
+
+      if (typeof parsed === "string") {
+        // resultJson is a plain URL string
+        resultUrl = parsed;
+      } else if (Array.isArray(parsed)) {
+        // resultJson is an array — pick first item's url-like field
+        const first = parsed[0] as Record<string, unknown> | undefined;
+        if (first) {
+          resultUrl =
+            (first.url as string | undefined) ??
+            (first.resourceWithoutWatermark as string | undefined) ??
+            (first.coverUrl as string | undefined) ??
+            (first.resource_without_watermark as string | undefined);
+        }
+      } else if (typeof parsed === "object" && parsed !== null) {
+        const obj = parsed as Record<string, unknown>;
+        resultUrl =
+          (obj.url as string | undefined) ??
+          (obj.resourceWithoutWatermark as string | undefined) ??
+          (obj.coverUrl as string | undefined) ??
+          (obj.resource_without_watermark as string | undefined);
+      }
+    } catch {
+      console.error("[kie] Failed to parse resultJson:", data.resultJson);
+    }
+  }
+
   return {
-    taskId: data.taskId,
-    status: data.status as KieTaskStatus,
-    resultUrl: data.resultUrl,
-    errorMessage: data.errorMessage,
+    taskId: data.taskId ?? taskId,
+    status,
+    resultUrl,
+    errorMessage: data.failMsg ?? undefined,
     raw: data as Record<string, unknown>,
   };
 }
