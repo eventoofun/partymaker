@@ -19,6 +19,7 @@ const CLUSTERS = [
     color: "#FF4D6D", popular: true,
     desc: "Desde los primeros pasos hasta los números redondos. Cada cumpleaños merece ser legendario.",
     href: "/cumpleanos",
+    genieImg: "/genio/genio_dj.png",
   },
   {
     id: "bodas", title: "Bodas", emoji: "💍",
@@ -27,6 +28,7 @@ const CLUSTERS = [
     color: "#C4956A", popular: false,
     desc: "El día más importante de tu vida merece la invitación más especial jamás creada.",
     href: "/bodas",
+    genieImg: "/genio/genio_bodas.png",
   },
   {
     id: "graduaciones", title: "Graduaciones", emoji: "🎓",
@@ -35,6 +37,7 @@ const CLUSTERS = [
     color: "#00C2D1", popular: true,
     desc: "Años de esfuerzo merecen una celebración épica. Marca el inicio de tu nueva etapa.",
     href: "/graduaciones",
+    genieImg: null,
   },
   {
     id: "despedidas", title: "Despedidas", emoji: "🥂",
@@ -43,6 +46,7 @@ const CLUSTERS = [
     color: "#FFB300", popular: false,
     desc: "La última gran noche de libertad. Hazla tan épica que nadie la olvide jamás.",
     href: "/despedidas",
+    genieImg: "/genio/genio_dj2.png",
   },
   {
     id: "comuniones", title: "Comuniones", emoji: "✨",
@@ -51,6 +55,7 @@ const CLUSTERS = [
     color: "#A78BFA", popular: false,
     desc: "Un momento sagrado que merece ser recordado para siempre con una invitación única.",
     href: "/comuniones",
+    genieImg: "/genio/genio_comunion.png",
   },
   {
     id: "bautizos", title: "Bautizos", emoji: "👶",
@@ -59,6 +64,7 @@ const CLUSTERS = [
     color: "#67E8F9", popular: false,
     desc: "La bienvenida más especial al mundo para el nuevo miembro de la familia.",
     href: "/bautizos",
+    genieImg: "/genio/genio_bautizos.png",
   },
   {
     id: "navidad", title: "Navidad", emoji: "🎄",
@@ -67,6 +73,7 @@ const CLUSTERS = [
     color: "#DC2626", popular: false,
     desc: "La magia de la Navidad en una invitación que quita el aliento a tus seres queridos.",
     href: "/navidad",
+    genieImg: null,
   },
   {
     id: "eventos-empresa", title: "Empresa", emoji: "🏢",
@@ -75,6 +82,7 @@ const CLUSTERS = [
     color: "#6366F1", popular: false,
     desc: "Eventos corporativos que inspiran, conectan equipos y se recuerdan durante años.",
     href: "/eventos-empresa",
+    genieImg: null,
   },
 ];
 
@@ -492,6 +500,23 @@ function ClusterCard({ c, index }: { c: typeof CLUSTERS[0]; index: number }) {
           opacity: hovered ? 1 : 0.4, transition: "opacity 0.4s",
           pointerEvents: "none",
         }} />
+
+        {/* Genie character */}
+        {c.genieImg && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={c.genieImg}
+            alt="El Genio"
+            style={{
+              position: "absolute", bottom: 0, right: 0,
+              width: "105px", objectFit: "contain",
+              animation: "genieLevitate 3.5s ease-in-out infinite",
+              pointerEvents: "none",
+              opacity: hovered ? 0.9 : 0.45,
+              transition: "opacity 0.35s",
+            }}
+          />
+        )}
 
         {c.popular && (
           <span style={{
@@ -1079,15 +1104,17 @@ export default function LandingClient() {
               </Link>
             </div>
           </div>
-          <div style={{
-            flexShrink: 0, width: "180px", height: "180px", borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,194,209,0.18) 0%, rgba(255,179,0,0.08) 60%, transparent 100%)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 0 80px rgba(0,194,209,0.22)",
-            animation: "glow-breathe 4s ease-in-out infinite",
-            border: "1px solid rgba(0,194,209,0.18)",
-          }} className="genio-orb">
-            <Mic size={56} style={{ color: "#00C2D1", opacity: 0.85, filter: "drop-shadow(0 0 14px #00C2D1)" }} />
+          <div style={{ flexShrink: 0 }} className="genio-orb">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/genio/genio_babyshower.png"
+              alt="El Genio"
+              style={{
+                width: "180px", objectFit: "contain",
+                animation: "genieLevitate 3.5s ease-in-out infinite",
+                filter: "drop-shadow(0 0 24px rgba(0,194,209,0.35))",
+              }}
+            />
           </div>
         </div>
       </section>
@@ -1141,15 +1168,17 @@ export default function LandingClient() {
           pointerEvents: "none",
         }} />
         <div className="container" style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-          <div style={{
-            marginBottom: "36px", display: "inline-flex",
-            alignItems: "center", justifyContent: "center",
-            width: "110px", height: "110px", borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,194,209,0.18) 0%, rgba(255,179,0,0.08) 60%, transparent 100%)",
-            boxShadow: "0 0 80px rgba(0,194,209,0.25), 0 0 160px rgba(255,179,0,0.12)",
-            animation: "glow-breathe 4s ease-in-out infinite",
-          }}>
-            <Sparkles size={46} style={{ color: "#00C2D1", filter: "drop-shadow(0 0 14px #00C2D1)" }} />
+          <div style={{ marginBottom: "36px", display: "inline-block" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/genio/genio_nacimientos.png"
+              alt="El Genio"
+              style={{
+                width: "130px", objectFit: "contain",
+                animation: "genieLevitate 3.5s ease-in-out infinite",
+                filter: "drop-shadow(0 0 20px rgba(255,179,0,0.35))",
+              }}
+            />
           </div>
 
           <h2 style={{

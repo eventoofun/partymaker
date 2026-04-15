@@ -111,7 +111,8 @@ function GenieTip({ children }: { children: React.ReactNode }) {
       border: "1px solid rgba(139,92,246,0.3)",
       borderRadius: "14px", padding: "14px 16px",
     }}>
-      <span style={{ fontSize: "1.6rem", flexShrink: 0, lineHeight: 1 }}>🧞</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/genio/genio.png" alt="El Genio" style={{ width: "52px", height: "52px", objectFit: "contain", flexShrink: 0, animation: "genieLevitate 3s ease-in-out infinite" }} />
       <p style={{ fontSize: "0.82rem", color: "var(--neutral-300)", margin: 0, lineHeight: 1.5 }}>
         {children}
       </p>
@@ -275,39 +276,35 @@ function AudioDropzone({ preview, onFile }: { preview: string | null; onFile: (f
 // ─── Processing spinner ───────────────────────────────────────────────────────
 
 function ProcessingState({ status }: { status: string }) {
-  const messages: Record<string, { emoji: string; title: string; subtitle: string }> = {
+  const messages: Record<string, { title: string; subtitle: string }> = {
     image_processing:   {
-      emoji: "🧞",
       title: "El Genio está haciendo su magia…",
       subtitle: "Está creando una imagen única y especial para el protagonista. Suele tardar 1–3 minutos.",
     },
     preview_queued:     {
-      emoji: "✨",
       title: "El Genio está preparando la animación…",
       subtitle: "En unos momentos comenzará a dar vida a tu historia.",
     },
     preview_processing: {
-      emoji: "🎬",
       title: "¡El Genio está animando tu historia!",
       subtitle: "Está dando movimiento a la imagen mágica. Suele tardar 2–5 minutos.",
     },
     final_queued:       {
-      emoji: "🌟",
       title: "El Genio está preparando la versión definitiva…",
       subtitle: "Tu invitación especial estará lista en breve.",
     },
     final_processing:   {
-      emoji: "🌟",
       title: "¡El Genio está creando tu invitación mágica!",
       subtitle: "Está dando los toques finales para que sea perfecta. Puede tardar 5–10 minutos.",
     },
   };
 
-  const msg = messages[status] ?? { emoji: "🧞", title: "El Genio está trabajando…", subtitle: "Espera unos instantes." };
+  const msg = messages[status] ?? { title: "El Genio está trabajando…", subtitle: "Espera unos instantes." };
 
   return (
     <div style={{ textAlign: "center", padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-      <div style={{ fontSize: "4rem", animation: "float 3s ease-in-out infinite" }}>{msg.emoji}</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/genio/genio.png" alt="El Genio" style={{ width: "160px", objectFit: "contain", animation: "genieLevitate 3s ease-in-out infinite" }} />
       <Loader2 size={32} style={{ color: "var(--brand-primary)", animation: "spin 1s linear infinite" }} />
       <p style={{ color: "var(--neutral-100)", fontSize: "1rem", fontWeight: 600, maxWidth: "300px" }}>{msg.title}</p>
       <p style={{ color: "var(--neutral-400)", fontSize: "0.82rem", maxWidth: "320px" }}>{msg.subtitle}</p>
@@ -316,7 +313,6 @@ function ProcessingState({ status }: { status: string }) {
       </p>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
       `}</style>
     </div>
   );
