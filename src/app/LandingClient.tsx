@@ -191,12 +191,13 @@ function NavBar() {
         transition: "all 0.4s ease",
       }}
     >
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+      <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/genio/genio.png" alt="El Genio" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "1.3rem", background: "var(--gradient-brand)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-          Cumplefy
-        </span>
+        <img
+          src="/cumplefy-logo-white.svg"
+          alt="Cumplefy"
+          style={{ height: "36px", width: "auto", filter: "drop-shadow(0 1px 6px rgba(2,4,9,0.6))" }}
+        />
       </Link>
 
       {/* Desktop links */}
@@ -1462,10 +1463,9 @@ function Footer() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "48px", marginBottom: "48px" }} className="footer-grid">
           {/* Brand */}
           <div>
-            <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", marginBottom: "16px" }}>
+            <Link href="/" style={{ display: "inline-flex", textDecoration: "none", marginBottom: "16px" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/genio/genio.png" alt="El Genio" style={{ width: "28px", height: "28px", objectFit: "contain" }} />
-              <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "1.2rem", background: "var(--gradient-brand)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Cumplefy</span>
+              <img src="/cumplefy-logo-white.svg" alt="Cumplefy" style={{ height: "30px", width: "auto", opacity: 0.9 }} />
             </Link>
             <p style={{ fontSize: "0.85rem", color: "var(--neutral-500)", lineHeight: 1.65, maxWidth: "260px" }}>
               La primera plataforma todo-en-uno para organizar celebraciones épicas. Videoinvitaciones con IA, regalos inteligentes y RSVP sin caos.
