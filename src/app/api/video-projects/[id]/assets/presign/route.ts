@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: RouteContext) {
   // Validate mime types per asset kind
   const allowedMimes: Record<string, string[]> = {
     protagonist_image: ["image/jpeg", "image/png", "image/webp"],
-    audio: ["audio/mpeg", "audio/mp4", "audio/wav", "audio/ogg", "audio/m4a"],
+    audio: ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/m4a", "audio/wav", "audio/x-wav", "audio/ogg", "audio/aac", "audio/webm"],
   };
 
   if (!allowedMimes[kind].includes(contentType)) {

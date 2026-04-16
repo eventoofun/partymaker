@@ -604,6 +604,9 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
               >
                 <Upload size={28} />
                 Subir archivo
+                <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "var(--neutral-500)", marginTop: "-2px" }}>
+                  m4a · mp3 · wav · ogg
+                </span>
               </button>
             </div>
           )}
@@ -675,11 +678,11 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
           )}
         </div>
 
-        {/* Hidden file input for upload mode */}
+        {/* Hidden file input for upload mode — m4a (iOS voice memos), mp3, wav, ogg, aac all accepted */}
         <input
           ref={audioInputRef}
           type="file"
-          accept="audio/*"
+          accept=".m4a,.mp3,.wav,.ogg,.aac,.mp4,audio/x-m4a,audio/mp4,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/webm"
           style={{ display: "none" }}
           onChange={e => {
             const file = e.target.files?.[0];
