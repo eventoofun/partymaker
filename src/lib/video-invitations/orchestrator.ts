@@ -11,7 +11,7 @@
  * All Storage calls go through ./storage.ts.
  */
 
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   videoProjects,
@@ -193,7 +193,13 @@ export async function generatePreview(
     throw new Error("Foto del protagonista no encontrada.");
   }
 
-  if (project.status !== "image_ready") {
+  // Lipsync skips NanaBanana and can start from assets_uploaded.
+  // Visual mode must wait for image_ready (NanaBanana processed image as first frame).
+  const validFromStatuses = project.mode === "lipsync"
+    ? ["assets_uploaded", "image_ready"]
+    : ["image_ready"];
+
+  if (!validFromStatuses.includes(project.status)) {
     throw new Error(
       `No se puede generar el preview en estado: ${project.status}. ` +
       "Espera a que la imagen IA esté lista primero.",
@@ -202,12 +208,15 @@ export async function generatePreview(
 
   assertTransition(project.status as VideoProjectStatus, "preview_queued");
 
-  // Atomically claim image_ready → preview_queued BEFORE any Kie.ai work.
+  // Atomically claim → preview_queued BEFORE any Kie.ai work.
   // If two requests race here, only one wins — the other gets null and throws.
   const [claimed] = await db
     .update(videoProjects)
     .set({ status: "preview_queued", updatedAt: new Date() })
-    .where(and(eq(videoProjects.id, projectId), eq(videoProjects.status, "image_ready")))
+    .where(and(
+      eq(videoProjects.id, projectId),
+      or(eq(videoProjects.status, "assets_uploaded"), eq(videoProjects.status, "image_ready")),
+    ))
     .returning();
 
   if (!claimed) {

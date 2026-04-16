@@ -7,11 +7,12 @@
  *   1. POST  /api/video-projects          → crea proyecto (mode: "lipsync")
  *   2. POST  /api/video-projects/[id]/assets/presign + confirm → sube foto
  *   3. POST  /api/video-projects/[id]/assets/presign + confirm → sube audio
- *   4. POST  /api/video-projects/[id]/generate-image           → NanaBanana Pro
- *   5. GET   /api/video-projects/[id]     → polling hasta image_ready
- *   6. POST  /api/video-projects/[id]/generate-preview         → InfiniteTalk
- *   7. GET   /api/video-projects/[id]     → polling hasta awaiting_approval
- *   8. POST  /api/video-projects/[id]/publish-lipsync          → publicar
+ *   4. POST  /api/video-projects/[id]/generate-preview         → InfiniteTalk (foto original)
+ *   5. GET   /api/video-projects/[id]     → polling hasta awaiting_approval
+ *   6. POST  /api/video-projects/[id]/publish-lipsync          → publicar
+ *
+ * NanaBanana Pro NO se usa en lipsync — InfiniteTalk trabaja mejor con la foto
+ * original sin estilizar (necesita rasgos faciales nítidos para el lip-sync).
  *
  * El usuario ve:
  *   Paso 0 — Foto (sube retrato)
@@ -187,10 +188,9 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
   // Step 2: Magic — phase messages
   const [magicPhase, setMagicPhase] = useState(0);
   const MAGIC_MESSAGES = [
-    "El Genio está estudiando el rostro...",
-    "El Genio está creando el retrato mágico...",
-    "El Genio está sincronizando tu voz...",
-    "El Genio está animando los labios...",
+    "El Genio está analizando el rostro...",
+    "El Genio está sincronizando tu voz con los labios...",
+    "El Genio está animando la invitación...",
     "¡Casi listo! Añadiendo los últimos toques mágicos...",
   ];
 
@@ -403,29 +403,8 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
 
   async function runMagicPipeline(projectId: string) {
     try {
-      // Phase 1: NanaBanana Pro (image)
+      // Lipsync skips NanaBanana — go directly to InfiniteTalk with the original photo
       setMagicPhase(0);
-      const genImgRes = await fetch(`/api/video-projects/${projectId}/generate-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!genImgRes.ok) {
-        const e = await genImgRes.json().catch(() => ({}));
-        throw new Error((e as { error?: string }).error ?? "Error iniciando el procesamiento de imagen");
-      }
-      setMagicPhase(1);
-
-      // Poll until image_ready — or any state the server auto-advanced to
-      // (e.g. preview_queued when the server auto-triggered the lipsync job)
-      await waitForStatus(projectId, [
-        "image_ready",
-        "preview_queued", "preview_processing", "preview_ready",
-        "awaiting_approval", "published",
-      ], ["image_failed"]);
-      setMagicPhase(2);
-
-      // Phase 2: InfiniteTalk (preview)
       const genPreRes = await fetch(`/api/video-projects/${projectId}/generate-preview`, {
         method: "POST",
       });
@@ -433,13 +412,13 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
         const e = await genPreRes.json().catch(() => ({}));
         throw new Error((e as { error?: string }).error ?? "Error iniciando la animación de voz");
       }
-      setMagicPhase(3);
+      setMagicPhase(1);
 
-      // Poll until awaiting_approval — or published (in case server auto-published)
+      // Poll until awaiting_approval or published
       await waitForStatus(projectId, ["awaiting_approval", "published"], ["preview_failed"]);
-      setMagicPhase(4);
+      setMagicPhase(2);
 
-      // Phase 3: Publish
+      // Publish
       const pubRes = await fetch(`/api/video-projects/${projectId}/publish-lipsync`, {
         method: "POST",
       });
