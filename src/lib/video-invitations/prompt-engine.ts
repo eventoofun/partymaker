@@ -59,6 +59,13 @@ const NEGATIVE_PROMPT_BASE =
 // ─── Prompt builders ──────────────────────────────────────────────────────────
 
 function buildVisualPrompt(input: PromptInput): string {
+  // InfiniteTalk lipsync: use a simple, neutral prompt focused on lip-sync quality.
+  // Avoid protagonist names, scene descriptions, or anything that could trigger
+  // Kie.ai's NSFW content filter. The image and audio drive the output — not the prompt.
+  if (input.mode === "lipsync") {
+    return "Natural speech, realistic lip sync, expressive face, professional portrait quality";
+  }
+
   const parts: string[] = [];
 
   // 1. Subject intro

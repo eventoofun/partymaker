@@ -288,10 +288,12 @@ export async function generatePreview(
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error(`[generatePreview] Kie.ai submission failed for ${projectId}: ${errMsg}`);
-    // Roll back: reset project to image_ready so the user can retry
+    // Roll back: lipsync never went through NanaBanana so roll back to assets_uploaded;
+    // visual mode roll back to image_ready (processed image still valid).
+    const rollbackStatus = project.mode === "lipsync" ? "assets_uploaded" : "image_ready";
     await db
       .update(videoProjects)
-      .set({ status: "image_ready", updatedAt: new Date() })
+      .set({ status: rollbackStatus, updatedAt: new Date() })
       .where(eq(videoProjects.id, projectId));
     throw err;
   }
