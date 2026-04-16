@@ -261,7 +261,16 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
         if (!res.ok) return;
         const data: VideoProject = await res.json();
         setProject(data);
-        const done = ["image_ready", "awaiting_approval", "published", "image_failed", "preview_failed"].includes(data.status);
+        // Include all non-processing states so the wizard doesn't spin forever
+        // when the server auto-advances the pipeline (e.g. auto-triggered preview)
+        const done = [
+          "image_ready",
+          "preview_queued", "preview_processing", "preview_ready",
+          "awaiting_approval",
+          "approved_for_final", "final_queued", "final_processing", "final_ready",
+          "published",
+          "image_failed", "preview_failed", "final_failed",
+        ].includes(data.status);
         if (done) { stopPolling(); onComplete(data); }
       } catch { /* silencioso */ }
     }, 8000);
@@ -407,8 +416,13 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
       }
       setMagicPhase(1);
 
-      // Poll until image_ready
-      await waitForStatus(projectId, "image_ready", ["image_failed"]);
+      // Poll until image_ready — or any state the server auto-advanced to
+      // (e.g. preview_queued when the server auto-triggered the lipsync job)
+      await waitForStatus(projectId, [
+        "image_ready",
+        "preview_queued", "preview_processing", "preview_ready",
+        "awaiting_approval", "published",
+      ], ["image_failed"]);
       setMagicPhase(2);
 
       // Phase 2: InfiniteTalk (preview)
@@ -421,8 +435,8 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
       }
       setMagicPhase(3);
 
-      // Poll until awaiting_approval
-      await waitForStatus(projectId, "awaiting_approval", ["preview_failed"]);
+      // Poll until awaiting_approval — or published (in case server auto-published)
+      await waitForStatus(projectId, ["awaiting_approval", "published"], ["preview_failed"]);
       setMagicPhase(4);
 
       // Phase 3: Publish
@@ -447,19 +461,19 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
     }
   }
 
-  /** Poll /api/video-projects/[id] every 8s until successStatus is reached.
-   * Throws if failStatuses contains the project's status.
-   * If an unexpected done state is reached, restarts polling to keep waiting. */
+  /** Poll /api/video-projects/[id] every 8s until any of successStatuses is reached.
+   * Throws if failStatuses contains the project's status. */
   async function waitForStatus(
     projectId: string,
-    successStatus: string,
+    successStatuses: string | string[],
     failStatuses: string[],
   ): Promise<VideoProject> {
+    const successList = Array.isArray(successStatuses) ? successStatuses : [successStatuses];
     return new Promise((resolve, reject) => {
       const check = (p: VideoProject) => {
-        if (p.status === successStatus) { resolve(p); return; }
+        if (successList.includes(p.status)) { resolve(p); return; }
         if (failStatuses.includes(p.status)) { reject(new Error(`El Genio encontró un error en el paso de ${p.status}`)); return; }
-        // Got an intermediate done state that isn't our target — keep polling
+        // Not yet at target — keep polling
         startPolling(projectId, check);
       };
       startPolling(projectId, check);
