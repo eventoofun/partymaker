@@ -60,14 +60,23 @@ export async function GET(_req: Request, { params }: RouteContext) {
   }
 
   // For lipsync projects stuck at image_ready: auto-trigger preview.
-  // Safe because generatePreview() does an atomic DB claim — concurrent calls are no-ops.
+  // MUST be awaited — Vercel kills fire-and-forget promises after the response is sent.
+  // generatePreview() does an atomic DB claim, so concurrent calls are safe no-ops.
   if (project.status === "image_ready" && project.mode === "lipsync" && project.audioPath) {
-    generatePreview(id).catch((err) =>
+    try {
+      await generatePreview(id);
+      // Re-fetch project so the response reflects the new preview_queued status
+      const refreshed = await db.query.videoProjects.findFirst({
+        where: eq(videoProjects.id, id),
+      });
+      if (refreshed) project = refreshed;
+    } catch (err) {
+      // "Already claimed" or other transient error — not fatal, just log
       console.error(
         `[get-project] Auto-trigger preview failed for ${id}:`,
         err instanceof Error ? err.message : err,
-      ),
-    );
+      );
+    }
   }
 
   // Include latest job for status polling fallback

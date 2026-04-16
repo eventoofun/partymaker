@@ -398,16 +398,19 @@ async function handleImageJobSuccess(
     `[kie-callback] Image job ${job.id} completed → project ${job.projectId} → image_ready`,
   );
 
-  // For lipsync projects: auto-trigger preview generation server-side.
-  // This means the pipeline advances even if the browser is closed.
+  // For lipsync projects: auto-trigger preview generation immediately.
+  // MUST be awaited — Vercel kills fire-and-forget promises after the response is sent.
   const project = await getProjectOrThrow(job.projectId);
   if (project.mode === "lipsync" && project.audioPath) {
-    generatePreview(job.projectId).catch((err) =>
+    try {
+      await generatePreview(job.projectId);
+      console.log(`[auto-preview] InfiniteTalk job submitted for ${job.projectId}`);
+    } catch (err) {
       console.error(
         `[auto-preview] Failed to auto-trigger preview for ${job.projectId}:`,
         err instanceof Error ? err.message : err,
-      ),
-    );
+      );
+    }
   }
 }
 

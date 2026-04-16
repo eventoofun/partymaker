@@ -54,17 +54,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  // 4. Process the callback asynchronously (don't block the 200 response)
-  // Kie.ai expects a fast 200 response — heavy work runs after we return.
-  handleKieCallback({
-    taskId,
-    status: status as "success" | "fail",
-    resultUrl,
-    errorMessage,
-    raw: payload,
-  }).catch((err) => {
+  // 4. Process the callback — MUST be awaited.
+  // Vercel kills fire-and-forget promises after the response is sent.
+  // handleKieCallback is fast enough (DB ops + Kie.ai submit < 5s).
+  try {
+    await handleKieCallback({
+      taskId,
+      status: status as "success" | "fail",
+      resultUrl,
+      errorMessage,
+      raw: payload,
+    });
+  } catch (err) {
     console.error("[kie-callback] Error processing callback:", err);
-  });
+    // Still return 200 — Kie.ai should not retry on our internal errors
+  }
 
   return NextResponse.json({ ok: true });
 }
