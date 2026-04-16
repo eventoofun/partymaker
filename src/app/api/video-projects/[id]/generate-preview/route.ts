@@ -36,20 +36,27 @@ export async function POST(_req: Request, { params }: RouteContext) {
     );
   }
 
+  console.log(
+    `[generate-preview] Project ${id} — status=${project.status} mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
+  );
+
   // If already past image_ready (auto-triggered server-side), treat as success.
   const alreadyAdvanced = ["preview_queued", "preview_processing", "preview_ready", "awaiting_approval", "published"].includes(project.status);
   if (alreadyAdvanced) {
+    console.log(`[generate-preview] Already advanced to ${project.status} — skipping`);
     return NextResponse.json({ message: "Preview already in progress", status: project.status });
   }
 
   try {
     const result = await generatePreview(id);
+    console.log(`[generate-preview] Success — taskId=${result.taskId} model=${result.model}`);
     return NextResponse.json({
       message: "Preview generation started",
       ...result,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[generate-preview] Error for ${id}: ${message}`);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

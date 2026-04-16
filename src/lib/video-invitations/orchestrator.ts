@@ -250,14 +250,22 @@ export async function generatePreview(
   let submitted: { taskId: string; modelId: string; requestPayload: Record<string, unknown> };
   try {
     if (project.mode === "lipsync" && project.audioPath) {
+      console.log(
+        `[generatePreview] Submitting InfiniteTalk for ${projectId} — audioPath=${project.audioPath} imageUrl=${firstFrameUrl.substring(0, 60)}...`,
+      );
       const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
+      console.log(`[generatePreview] Audio URL signed OK — submitting to Kie.ai`);
       submitted = await submitLipsync({
         imageUrl: firstFrameUrl,
         audioUrl,
         prompt: compiled.visualPrompt,
         resolution: "480p",
       });
+      console.log(`[generatePreview] InfiniteTalk submitted — taskId=${submitted.taskId}`);
     } else {
+      console.log(
+        `[generatePreview] Submitting Seedance for ${projectId} — mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
+      );
       submitted = await submitSeedancePreview({
         prompt: compiled.visualPrompt,
         firstFrameUrl,
@@ -266,8 +274,11 @@ export async function generatePreview(
         durationSeconds: project.durationSeconds,
         generateAudio: true,
       });
+      console.log(`[generatePreview] Seedance submitted — taskId=${submitted.taskId}`);
     }
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[generatePreview] Kie.ai submission failed for ${projectId}: ${errMsg}`);
     // Roll back: reset project to image_ready so the user can retry
     await db
       .update(videoProjects)
@@ -406,16 +417,25 @@ async function handleImageJobSuccess(
   // For lipsync projects: auto-trigger preview generation immediately.
   // MUST be awaited — Vercel kills fire-and-forget promises after the response is sent.
   const project = await getProjectOrThrow(job.projectId);
+  console.log(
+    `[auto-preview] Project ${job.projectId} — mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
+  );
   if (project.mode === "lipsync" && project.audioPath) {
     try {
-      await generatePreview(job.projectId);
-      console.log(`[auto-preview] InfiniteTalk job submitted for ${job.projectId}`);
+      const previewResult = await generatePreview(job.projectId);
+      console.log(
+        `[auto-preview] InfiniteTalk job submitted for ${job.projectId} — taskId=${previewResult.taskId} model=${previewResult.model}`,
+      );
     } catch (err) {
       console.error(
         `[auto-preview] Failed to auto-trigger preview for ${job.projectId}:`,
         err instanceof Error ? err.message : err,
       );
     }
+  } else {
+    console.warn(
+      `[auto-preview] Skipped for ${job.projectId} — mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
+    );
   }
 }
 

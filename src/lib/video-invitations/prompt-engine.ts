@@ -148,8 +148,12 @@ export function compilePrompt(input: PromptInput): CompiledPrompt {
       break;
 
     case MODEL_INFINITETALK:
-      // Lipsync: prompt not used by InfiniteTalk — image + audio drive it
-      modelInput = {};
+      // InfiniteTalk requires prompt (text guidance) + image_url + audio_url.
+      // image_url and audio_url are added by generatePreview() in the orchestrator.
+      modelInput = {
+        prompt: visualPrompt,
+        resolution: "480p",
+      };
       break;
 
     default:
