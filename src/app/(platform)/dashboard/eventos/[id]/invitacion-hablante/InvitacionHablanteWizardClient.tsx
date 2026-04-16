@@ -473,8 +473,8 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
         </p>
 
         <GenieTip>
-          Usa una foto <strong>de frente</strong>, con buena iluminación y el rostro bien visible. Sin gafas de sol, preferiblemente con fondo simple.
-          El Genio necesita ver la cara completa para sincronizar los labios a la perfección.
+          Usa una foto <strong>de frente</strong> de un <strong>adulto</strong>, con buena iluminación y el rostro bien visible. Sin gafas de sol, preferiblemente con fondo simple.
+          El Genio necesita ver la cara completa para sincronizar los labios. <strong style={{ color: "#F59E0B" }}>Esta función no es compatible con fotos de bebés o niños.</strong>
         </GenieTip>
 
         {/* Photo drop zone */}
@@ -867,6 +867,58 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
               Tu invitación hablante ya está visible en la <strong style={{ color: "var(--neutral-200)" }}>página pública del evento</strong>. Comparte el enlace del evento con tus invitados para que la vean.
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Baby blocker ──────────────────────────────────────────────────────────
+  // InfiniteTalk's NSFW filter rejects images of babies/toddlers.
+  // Block the lipsync wizard for celebrants aged 3 or under and redirect to
+  // the visual video invitation instead.
+
+  const isBaby = event.celebrantAge !== null && event.celebrantAge !== undefined && event.celebrantAge <= 3;
+
+  if (isBaby) {
+    return (
+      <div>
+        <style>{`
+          @keyframes genieLevitate { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+        `}</style>
+
+        <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+          <ArrowLeft size={14} /> {event.celebrantName}
+        </Link>
+
+        <div style={{ padding: "32px 28px", borderRadius: "20px", background: "var(--surface-card)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/genio/genio.png"
+            alt="El Genio"
+            style={{ width: "80px", objectFit: "contain", margin: "0 auto 20px", display: "block", animation: "genieLevitate 3s ease-in-out infinite" }}
+          />
+          <h3 style={{ fontWeight: 700, fontSize: "1.15rem", marginBottom: "10px" }}>
+            ¡El Genio necesita una carita adulta!
+          </h3>
+          <p style={{ color: "var(--neutral-400)", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "28px", maxWidth: "380px", margin: "0 auto 28px" }}>
+            La invitación hablante anima los labios de un adulto para que parezca que habla con tu voz.
+            Para bebés y niños pequeños, el sistema no puede procesar la foto correctamente.
+          </p>
+          <p style={{ color: "var(--neutral-300)", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "28px", maxWidth: "380px", margin: "0 auto 28px" }}>
+            Te recomendamos la <strong style={{ color: "#00C2D1" }}>Videoinvitación animada</strong>:
+            el Genio creará un vídeo mágico del cumpleaños de <strong>{event.celebrantName}</strong> con música y efectos especiales, sin necesitar reconocimiento facial.
+          </p>
+          <Link
+            href={`/dashboard/eventos/${eventId}/invitaciones`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "8px",
+              padding: "14px 28px", borderRadius: "12px",
+              background: "var(--gradient-brand)", color: "white",
+              fontWeight: 700, fontSize: "0.95rem", textDecoration: "none",
+            }}
+          >
+            <Video size={16} /> Ver Videoinvitación animada
+          </Link>
         </div>
       </div>
     );
