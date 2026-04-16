@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" fill="none">
+  <defs>
+    <!-- Brand gradient: electric pink → violet -->
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3366"/>
+      <stop offset="100%" stop-color="#8338ec"/>
+    </linearGradient>
+    <!-- Gold accent for spark -->
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffbe0b"/>
+      <stop offset="100%" stop-color="#ff9933"/>
+    </linearGradient>
+    <!-- Glow filter for spark -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Subtle drop shadow for wordmark -->
+    <filter id="textShadow" x="-5%" y="-5%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(131,56,236,0.3)"/>
+    </filter>
+  </defs>
+
+  <!-- ── Icon: Magic lamp ────────────────────────────────────────── -->
+  <!-- Lamp body (teardrop / genie lamp shape) -->
+  <path
+    d="M 28 42
+       C 16 42 10 36 10 28
+       C 10 18 18 12 28 12
+       C 38 12 46 18 46 28
+       C 46 36 40 42 28 42 Z"
+    fill="url(#brand)"
+    opacity="0.9"
+  />
+  <!-- Lamp spout (nozzle pointing right) -->
+  <path
+    d="M 44 26 C 50 24 54 22 54 18 C 54 15 51 14 48 15 C 46 16 45 18 44 22 Z"
+    fill="url(#brand)"
+    opacity="0.9"
+  />
+  <!-- Lamp handle (curved arc on left) -->
+  <path
+    d="M 12 28 C 6 28 4 24 4 20 C 4 16 6 14 10 14"
+    stroke="url(#brand)"
+    stroke-width="3"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.9"
+  />
+  <!-- Lamp base/foot -->
+  <rect x="18" y="42" width="20" height="3" rx="1.5" fill="url(#brand)" opacity="0.7"/>
+  <!-- Base plate -->
+  <rect x="15" y="45" width="26" height="3" rx="1.5" fill="url(#brand)" opacity="0.5"/>
+
+  <!-- Magic smoke / genie wisp emerging from spout -->
+  <path
+    d="M 49 18 C 52 14 50 8 54 5 C 57 3 60 5 58 9 C 56 12 52 11 54 7"
+    stroke="url(#gold)"
+    stroke-width="2"
+    stroke-linecap="round"
+    fill="none"
+    filter="url(#glow)"
+    opacity="0.9"
+  />
+
+  <!-- Gold spark / star at top of smoke -->
+  <g filter="url(#glow)" transform="translate(57, 4)">
+    <!-- 4-point star -->
+    <path d="M 0 -5 L 1.2 -1.2 L 5 0 L 1.2 1.2 L 0 5 L -1.2 1.2 L -5 0 L -1.2 -1.2 Z"
+          fill="url(#gold)" opacity="1"/>
+    <!-- Tiny orbiting dots -->
+    <circle cx="7" cy="-3" r="1.2" fill="#ffbe0b" opacity="0.8"/>
+    <circle cx="-6" cy="4" r="0.9" fill="#ffbe0b" opacity="0.6"/>
+    <circle cx="5" cy="5" r="0.7" fill="#ff9933" opacity="0.7"/>
+  </g>
+
+  <!-- Subtle shine on lamp body -->
+  <ellipse cx="22" cy="22" rx="5" ry="3.5" fill="white" opacity="0.18" transform="rotate(-20, 22, 22)"/>
+
+  <!-- ── Wordmark: Cumplefy ──────────────────────────────────────── -->
+  <text
+    x="72"
+    y="43"
+    font-family="-apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif"
+    font-size="34"
+    font-weight="800"
+    letter-spacing="-1"
+    fill="url(#brand)"
+    filter="url(#textShadow)"
+  >Cumplefy</text>
+
+</svg>
