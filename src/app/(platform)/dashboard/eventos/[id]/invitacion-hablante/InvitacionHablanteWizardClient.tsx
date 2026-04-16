@@ -165,6 +165,7 @@ function AudioWaveform({ isRecording, analyser }: { isRecording: boolean; analys
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
 export default function InvitacionHablanteWizardClient({ eventId, event }: Props) {
+  const [agreedToAge, setAgreedToAge] = useState(false);
   const [step, setStep]     = useState(0);
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<VideoProject | null>(null);
@@ -919,6 +920,74 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
           >
             <Video size={16} /> Ver Videoinvitación animada
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Age gate ─────────────────────────────────────────────────────────────
+  // Cumplefy requires the portrait subject to be 18+. This gate ensures users
+  // are aware of and accept this requirement before proceeding.
+
+  if (!agreedToAge) {
+    return (
+      <div>
+        <style>{`
+          @keyframes genieLevitate { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+        `}</style>
+
+        <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+          <ArrowLeft size={14} /> {event.celebrantName}
+        </Link>
+
+        <div style={{ padding: "32px 28px", borderRadius: "20px", background: "var(--surface-card)", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/genio/genio.png"
+            alt="El Genio"
+            style={{ width: "80px", objectFit: "contain", margin: "0 auto 20px", display: "block", animation: "genieLevitate 3s ease-in-out infinite" }}
+          />
+
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 16px", borderRadius: "999px", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", marginBottom: "20px" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#F59E0B", letterSpacing: "0.05em" }}>SOLO PARA MAYORES DE 18 AÑOS</span>
+          </div>
+
+          <h3 style={{ fontWeight: 700, fontSize: "1.15rem", marginBottom: "12px" }}>
+            Aviso de ética y seguridad
+          </h3>
+          <p style={{ color: "var(--neutral-400)", fontSize: "0.88rem", lineHeight: 1.75, marginBottom: "20px", maxWidth: "400px", margin: "0 auto 20px" }}>
+            La <strong style={{ color: "var(--neutral-200)" }}>Invitación hablante</strong> usa inteligencia artificial para animar el rostro de una persona y sincronizar sus labios con una grabación de voz.
+          </p>
+          <p style={{ color: "var(--neutral-400)", fontSize: "0.88rem", lineHeight: 1.75, marginBottom: "28px", maxWidth: "400px", margin: "0 auto 28px" }}>
+            Por razones de <strong style={{ color: "var(--neutral-200)" }}>ética y protección de menores</strong>, este servicio está <strong style={{ color: "#F59E0B" }}>exclusivamente disponible para personas mayores de 18 años</strong>. La foto que subas debe ser de un adulto y debes tener su consentimiento para animarla.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "400px", margin: "0 auto" }}>
+            <button
+              onClick={() => setAgreedToAge(true)}
+              style={{
+                width: "100%", padding: "14px", borderRadius: "12px",
+                background: "var(--gradient-brand)", border: "none",
+                color: "white", fontWeight: 700, fontSize: "0.95rem",
+                cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              }}
+            >
+              <Check size={16} /> Confirmo que la persona tiene +18 años
+            </button>
+            <Link
+              href={`/dashboard/eventos/${eventId}/invitaciones`}
+              style={{
+                width: "100%", padding: "13px", borderRadius: "12px",
+                border: "1px solid rgba(255,255,255,0.1)", background: "transparent",
+                color: "var(--neutral-400)", fontWeight: 600, fontSize: "0.88rem",
+                textDecoration: "none", textAlign: "center",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              }}
+            >
+              <Video size={14} /> Ver otras opciones de invitación
+            </Link>
+          </div>
         </div>
       </div>
     );
