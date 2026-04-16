@@ -56,6 +56,15 @@ export async function POST(_req: Request, { params }: RouteContext) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+
+    // Race condition: auto-trigger already claimed image_ready → preview_queued
+    // before this explicit call. Treat as soft success — the auto-trigger has it covered.
+    if (message.includes("otro proceso se adelantó")) {
+      const updated = await db.query.videoProjects.findFirst({ where: eq(videoProjects.id, id) });
+      console.log(`[generate-preview] Auto-trigger already claimed — current status=${updated?.status}`);
+      return NextResponse.json({ message: "Preview already in progress", status: updated?.status });
+    }
+
     console.error(`[generate-preview] Error for ${id}: ${message}`);
     return NextResponse.json({ error: message }, { status: 400 });
   }
