@@ -270,7 +270,7 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
       }
 
       // Submit NanaBanana Pro job via KIE.ai (/api/video-projects/[id]/generate-image)
-      toast.loading("El Genio está creando tu invitación con IA…", { id: "gen-image" });
+      toast.loading("El Genio está preparando tu invitación mágica…", { id: "gen-image" });
       const genRes = await fetch(`/api/video-projects/${project.id}/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -491,7 +491,7 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
           <>
             <h3 style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: "8px", color: "#EF4444" }}>El Genio encontró un problema</h3>
             <p style={{ color: "var(--neutral-400)", fontSize: "0.9rem", marginBottom: "24px" }}>
-              KIE.ai devolvió un error al procesar las fotos. Puedes intentarlo de nuevo.
+              Hubo un problema al procesar las fotos. Puedes intentarlo de nuevo.
             </p>
             <button
               onClick={handleRegenerate}
@@ -508,7 +508,7 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
               El Genio está creando tu invitación...
             </h3>
             <p style={{ color: "var(--neutral-400)", fontSize: "0.9rem", marginBottom: "8px" }}>
-              NanaBanana Pro vía KIE.ai está procesando las fotos de <strong style={{ color: "var(--neutral-200)" }}>{event.celebrantName}</strong>.
+              El Genio está procesando las fotos de <strong style={{ color: "var(--neutral-200)" }}>{event.celebrantName}</strong>.
             </p>
             <p style={{ color: "var(--neutral-600)", fontSize: "0.8rem" }}>
               Esto suele tardar 1-3 minutos. Esta pantalla se actualizará sola.

@@ -235,7 +235,7 @@ function ProcessingState() {
         El Genio está creando tu imagen mágica…
       </p>
       <p style={{ color: "var(--neutral-400)", fontSize: "0.82rem", maxWidth: "320px" }}>
-        Está generando un retrato único con IA. Suele tardar 1–3 minutos.
+        El Genio está tejiendo la magia. Suele tardar 1–3 minutos.
       </p>
       <p style={{ color: "var(--neutral-600)", fontSize: "0.78rem" }}>
         Puedes cerrar esta ventana y volver más tarde.
@@ -449,7 +449,7 @@ function UpsellHero({
           gap: "12px",
         }}
       >
-        <span>🎙️ Solo quiero el Retrato que habla (InfiniteTalk)</span>
+        <span>🎙️ Solo quiero el Retrato que habla</span>
         <span style={{ fontSize: "0.82rem", color: "var(--neutral-500)", flexShrink: 0 }}>2,99 €</span>
       </a>
     </div>

@@ -457,7 +457,7 @@ function GenieUpsellBlock({
           <span>
             {loading === "both"
               ? "Redirigiendo al pago…"
-              : "🎬🎙️ Vídeo + Retrato que habla (InfiniteTalk)"}
+              : "🎬🎙️ Vídeo + Retrato que habla"}
           </span>
           <span style={{ fontSize: "0.85rem", fontWeight: 600, opacity: 0.85 }}>4,99 €</span>
         </button>
@@ -478,7 +478,7 @@ function GenieUpsellBlock({
             justifyContent: "space-between",
           }}
         >
-          <span>🎙️ Solo InfiniteTalk (retrato que habla)</span>
+          <span>🎙️ Solo Retrato que habla</span>
           <span style={{ fontSize: "0.82rem" }}>2,99 €</span>
         </a>
 

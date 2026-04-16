@@ -755,7 +755,7 @@ export default function InvitacionHablanteWizardClient({ eventId, event }: Props
               {MAGIC_MESSAGES[magicPhase]}
             </h3>
             <p style={{ color: "var(--neutral-500)", fontSize: "0.85rem", lineHeight: 1.6 }}>
-              La invitación hablante de <strong style={{ color: "var(--neutral-200)" }}>{event.celebrantName}</strong> se está creando con InfiniteTalk vía KIE.ai.
+              El Genio está dando vida a la invitación de <strong style={{ color: "var(--neutral-200)" }}>{event.celebrantName}</strong>.
               <br />
               <span style={{ color: "var(--neutral-600)", fontSize: "0.8rem" }}>Suele tardar entre 1 y 4 minutos. Esta pantalla se actualizará sola.</span>
             </p>
