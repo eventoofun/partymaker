@@ -251,7 +251,12 @@ export async function generatePreview(
   try {
     if (project.mode === "lipsync" && project.audioPath) {
       const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
-      submitted = await submitLipsync({ imageUrl: firstFrameUrl, audioUrl });
+      submitted = await submitLipsync({
+        imageUrl: firstFrameUrl,
+        audioUrl,
+        prompt: compiled.visualPrompt,
+        resolution: "480p",
+      });
     } else {
       submitted = await submitSeedancePreview({
         prompt: compiled.visualPrompt,

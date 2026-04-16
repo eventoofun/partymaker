@@ -413,6 +413,10 @@ export interface LipsyncInput {
   imageUrl: string;
   /** URL of the audio (mp3/wav/m4a) */
   audioUrl: string;
+  /** Text guidance for generation (required by InfiniteTalk API) */
+  prompt: string;
+  /** Output resolution — default 480p */
+  resolution?: "480p" | "720p";
 }
 
 /**
@@ -428,6 +432,8 @@ export async function submitLipsync(
     input: {
       image_url: input.imageUrl,
       audio_url: input.audioUrl,
+      prompt: input.prompt,
+      resolution: input.resolution ?? "480p",
     },
     callbackUrl,
   });
@@ -508,10 +514,12 @@ export async function generateBaseVideo(input: {
 export async function applyLipsync(input: {
   videoUrl: string;
   audioUrl: string;
+  prompt?: string;
 }): Promise<{ videoUrl: string; requestId: string }> {
   const task = await submitLipsync({
     imageUrl: input.videoUrl,
     audioUrl: input.audioUrl,
+    prompt: input.prompt ?? "Portrait speaking naturally, realistic lip sync, professional quality",
   });
   return { videoUrl: "", requestId: task.taskId };
 }
