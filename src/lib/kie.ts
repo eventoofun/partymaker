@@ -409,7 +409,7 @@ export async function submitKlingFinal(
 
 // ─── InfiniteTalk — Lipsync (audio-driven face animation) ────────────────────
 
-export const MODEL_INFINITETALK = "infinitetalk/from-audio";
+export const MODEL_INFINITETALK = "infinitalk/from-audio";
 
 export interface LipsyncInput {
   /** URL of the portrait image or silent video */
