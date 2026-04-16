@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -74,8 +74,16 @@ const labelStyle: React.CSSProperties = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const WIZARD_ROUTES: Record<string, string> = {
+  video:    "invitaciones",
+  avatar:   "invitacion-hablante",
+  estrella: "invitaciones",
+};
+
 export default function NuevoEventoPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const wizardParam = searchParams.get("wizard") ?? "";
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -132,7 +140,11 @@ export default function NuevoEventoPage() {
 
       const { eventId } = await res.json();
       toast.success("¡Celebración creada! 🎉");
-      router.push(`/dashboard/eventos/${eventId}`);
+      const wizardSection = WIZARD_ROUTES[wizardParam];
+      const dest = wizardSection
+        ? `/dashboard/eventos/${eventId}/${wizardSection}`
+        : `/dashboard/eventos/${eventId}`;
+      router.push(dest);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Error al crear el evento");
       setLoading(false);

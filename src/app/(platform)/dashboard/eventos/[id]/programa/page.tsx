@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import ItineraryClient from "./ItineraryClient";
 
@@ -39,6 +39,9 @@ export default async function ProgramaPage({ params }: Props) {
 
   return (
     <div style={{ maxWidth: "760px" }}>
+      <Link href={`/dashboard/eventos/${id}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {event.celebrantName}
+      </Link>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
         <div>

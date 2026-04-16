@@ -5,7 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import VideoWizardClient from "./VideoWizardClient";
+import { Suspense } from "react";
+import InvitacionWizardClient from "./InvitacionWizardClient";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -22,13 +23,17 @@ export default async function InvitacionesPage({ params }: Props) {
 
   if (!event || event.ownerId !== userId) notFound();
 
-  // Load the most recent video project for this event (if any)
+  // Cargar el proyecto de invitación más reciente (modo visual, sin animación aún)
+  // Excluye proyectos lipsync que pertenecen al wizard de invitación-hablante
   const [existingProject] = await db
     .select()
     .from(videoProjects)
     .where(eq(videoProjects.eventId, id))
     .orderBy(desc(videoProjects.createdAt))
     .limit(1);
+
+  // Si el proyecto más reciente es lipsync, no pasarlo a este wizard
+  const visualProject = existingProject?.mode === "lipsync" ? null : (existingProject ?? null);
 
   return (
     <div style={{ maxWidth: "760px" }}>
@@ -40,22 +45,24 @@ export default async function InvitacionesPage({ params }: Props) {
         }}>
           <ArrowLeft size={14} /> {event.celebrantName}
         </Link>
-        <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "6px" }}>Invitación en vídeo</h1>
+        <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "6px" }}>Invitación mágica</h1>
         <p style={{ color: "var(--neutral-400)" }}>
-          Crea una invitación personalizada con IA para {event.celebrantName}
+          El Genio crea una imagen única de {event.celebrantName} con inteligencia artificial — gratis
         </p>
       </div>
-      <VideoWizardClient
-        eventId={id}
-        event={{
-          celebrantName: event.celebrantName,
-          celebrantAge: event.celebrantAge,
-          type: event.type,
-          eventDate: event.eventDate ?? null,
-          venue: event.venue ?? null,
-        }}
-        existingProject={existingProject ?? null}
-      />
+      <Suspense>
+        <InvitacionWizardClient
+          eventId={id}
+          event={{
+            celebrantName: event.celebrantName,
+            celebrantAge: event.celebrantAge,
+            type: event.type,
+            eventDate: event.eventDate ?? null,
+            venue: event.venue ?? null,
+          }}
+          existingProject={visualProject}
+        />
+      </Suspense>
     </div>
   );
 }

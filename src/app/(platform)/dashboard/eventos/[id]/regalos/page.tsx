@@ -43,6 +43,7 @@ export default async function RegalosPage({ params }: Props) {
     <RegalosClient
       eventId={event.id}
       eventSlug={event.slug}
+      celebrantName={event.celebrantName}
       giftListId={giftList.id}
       initialItems={giftList.items.map((i) => ({
         id: i.id,

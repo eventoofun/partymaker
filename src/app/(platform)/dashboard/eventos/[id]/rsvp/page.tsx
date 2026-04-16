@@ -3,7 +3,8 @@ import { db } from "@/db";
 import { events, rsvpResponses, guests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, XCircle, Clock, Users } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, XCircle, Clock, Users, ArrowLeft } from "lucide-react";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -40,6 +41,9 @@ export default async function RsvpPage({ params }: Props) {
 
   return (
     <div style={{ maxWidth: "760px" }}>
+      <Link href={`/dashboard/eventos/${id}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {event.celebrantName}
+      </Link>
       <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "8px" }}>RSVP</h1>
       <p style={{ color: "var(--neutral-500)", fontSize: "0.9rem", marginBottom: "32px" }}>
         {total} invitados · {confirmed} confirmados

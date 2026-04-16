@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Gift, ExternalLink, Pencil, Trash2, Loader2, X, ToggleLeft, ToggleRight, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Plus, Gift, ExternalLink, Pencil, Trash2, Loader2, X, ToggleLeft, ToggleRight, Sparkles, ArrowLeft } from "lucide-react";
 import GiftSearchModal from "./GiftSearchModal";
 
 interface GiftItem {
@@ -20,6 +21,7 @@ interface GiftItem {
 interface Props {
   eventId: string;
   eventSlug: string;
+  celebrantName: string;
   giftListId: string;
   initialItems: GiftItem[];
 }
@@ -42,7 +44,7 @@ const EMPTY_FORM: FormData = {
   quantityWanted: "1",
 };
 
-export default function RegalosClient({ eventId: _eventId, eventSlug, giftListId, initialItems }: Props) {
+export default function RegalosClient({ eventId, eventSlug, celebrantName, giftListId, initialItems }: Props) {
   const [items, setItems] = useState<GiftItem[]>(initialItems);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<GiftItem | null>(null);
@@ -179,6 +181,9 @@ export default function RegalosClient({ eventId: _eventId, eventSlug, giftListId
   return (
     <>
       <div style={{ maxWidth: "760px" }}>
+        <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+          <ArrowLeft size={14} /> {celebrantName}
+        </Link>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "28px", flexWrap: "wrap", gap: "12px" }}>
           <div>

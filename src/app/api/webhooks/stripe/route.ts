@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { contributions, giftItems } from "@/db/schema";
+import { contributions, giftItems, videoProjects } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 
@@ -73,6 +73,19 @@ export async function POST(req: Request) {
       .update(contributions)
       .set({ paymentStatus: "failed" })
       .where(eq(contributions.stripePaymentIntentId, pi.id));
+  }
+
+  // ── Upsell animación del Genio ───────────────────────────────────────────
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const { projectId } = session.metadata ?? {};
+
+    if (projectId && session.payment_status === "paid") {
+      await db
+        .update(videoProjects)
+        .set({ animationPaid: true, updatedAt: new Date() })
+        .where(eq(videoProjects.id, projectId));
+    }
   }
 
   return NextResponse.json({ ok: true });

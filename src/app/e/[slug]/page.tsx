@@ -88,7 +88,7 @@ export default async function PublicEventPage({ params }: Props) {
 
   // Load the latest published IA video project (new system)
   const [latestVideoProject] = await db
-    .select({ finalVideoUrl: videoProjects.finalVideoUrl, thumbnailUrl: videoProjects.thumbnailUrl })
+    .select({ finalVideoUrl: videoProjects.finalVideoUrl, thumbnailUrl: videoProjects.thumbnailUrl, aspectRatio: videoProjects.aspectRatio })
     .from(videoProjects)
     .where(and(eq(videoProjects.eventId, event.id), eq(videoProjects.status, "published")))
     .orderBy(desc(videoProjects.createdAt))
@@ -179,6 +179,8 @@ export default async function PublicEventPage({ params }: Props) {
         status: "ready" as const,
         videoUrlHorizontal: latestVideoProject.finalVideoUrl,
         thumbnailUrl: latestVideoProject.thumbnailUrl ?? null,
+        // Don't default to "9:16" — let the VideoPlayer detect real dimensions via onLoadedMetadata
+        aspectRatio: latestVideoProject.aspectRatio as "9:16" | "16:9" | "1:1" | undefined,
       }
     : latestVideo
     ? {
@@ -186,6 +188,7 @@ export default async function PublicEventPage({ params }: Props) {
         status: latestVideo.status,
         videoUrlHorizontal: latestVideo.videoUrlHorizontal ?? null,
         thumbnailUrl: latestVideo.thumbnailUrl ?? null,
+        aspectRatio: "16:9" as const, // legacy Remotion videos are always 16:9
       }
     : null;
 

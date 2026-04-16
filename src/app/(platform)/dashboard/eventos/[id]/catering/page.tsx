@@ -21,7 +21,7 @@ export default async function CateringPage({ params }: Props) {
   // Verify event exists
   const event = await db.query.events.findFirst({
     where: eq(events.id, id),
-    columns: { id: true },
+    columns: { id: true, celebrantName: true },
   });
   if (!event) notFound();
 
@@ -59,6 +59,7 @@ export default async function CateringPage({ params }: Props) {
   return (
     <CateringClient
       eventId={id}
+      celebrantName={event.celebrantName}
       menus={menusWithCount}
       rsvpData={rsvpData}
       canEdit={canEdit(role)}

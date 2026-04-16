@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Send, Bell, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { Mail, Send, Bell, Loader2, CheckCircle2, AlertTriangle, ArrowLeft } from "lucide-react";
 
 type Action = "invite" | "rsvp_reminder" | "event_details";
 
@@ -144,6 +145,9 @@ export default function ComunicacionesClient({
 
   return (
     <div style={{ maxWidth: "760px" }}>
+      <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {celebrantName}
+      </Link>
       <div style={{ marginBottom: "32px" }}>
         <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "4px" }}>Comunicaciones</h1>
         <p style={{ color: "var(--neutral-500)", fontSize: "0.9rem" }}>

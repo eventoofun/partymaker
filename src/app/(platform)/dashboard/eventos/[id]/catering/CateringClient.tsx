@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { UtensilsCrossed, Plus, Pencil, Trash2, Download, X } from "lucide-react";
+import Link from "next/link";
+import { UtensilsCrossed, Plus, Pencil, Trash2, Download, X, ArrowLeft } from "lucide-react";
 
 type MenuType = "adult" | "child" | "vegan" | "vegetarian" | "gluten_free" | "other";
 
@@ -26,6 +27,7 @@ interface RsvpRow {
 
 interface Props {
   eventId: string;
+  celebrantName: string;
   menus: MenuWithCount[];
   rsvpData: RsvpRow[];
   canEdit: boolean;
@@ -51,7 +53,7 @@ const TYPE_COLORS: Record<MenuType, string> = {
 
 const EMPTY_FORM = { name: "", description: "", type: "" as MenuType | "", isDefault: false };
 
-export default function CateringClient({ eventId, menus: initialMenus, rsvpData, canEdit }: Props) {
+export default function CateringClient({ eventId, celebrantName, menus: initialMenus, rsvpData, canEdit }: Props) {
   const [menus, setMenus] = useState<MenuWithCount[]>(initialMenus);
   const [showCreate, setShowCreate] = useState(false);
   const [editingMenu, setEditingMenu] = useState<MenuWithCount | null>(null);
@@ -213,6 +215,9 @@ export default function CateringClient({ eventId, menus: initialMenus, rsvpData,
 
   return (
     <div style={{ maxWidth: "760px" }}>
+      <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {celebrantName}
+      </Link>
       {/* Header */}
       <div
         style={{

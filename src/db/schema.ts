@@ -979,6 +979,10 @@ export const videoProjects = pgTable("video_projects", {
   regenerationCount: integer("regeneration_count").default(0).notNull(),
   maxRegenerations:  integer("max_regenerations").default(3).notNull(),
 
+  // Upsell de animación (pago one-shot €2,99 / €4,99)
+  animationPaid:   boolean("animation_paid").default(false).notNull(),
+  stripeSessionId: text("stripe_session_id"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [

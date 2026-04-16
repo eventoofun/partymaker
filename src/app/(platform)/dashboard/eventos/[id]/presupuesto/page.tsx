@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { events } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import BudgetClient from "./BudgetClient";
 
 interface Props {
@@ -42,6 +44,9 @@ export default async function PresupuestoPage({ params }: Props) {
 
   return (
     <div style={{ maxWidth: "760px" }}>
+      <Link href={`/dashboard/eventos/${id}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {event.celebrantName}
+      </Link>
       {/* Header */}
       <div style={{ marginBottom: "28px" }}>
         <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: "4px" }}>Presupuesto del evento</h1>

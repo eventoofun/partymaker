@@ -12,7 +12,7 @@ import { approveFinal } from "@/lib/video-invitations/orchestrator";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, { params }: RouteContext) {
+export async function POST(req: Request, { params }: RouteContext) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,10 +25,20 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const role = await getEventRole(project.eventId, userId);
   if (!canEdit(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Read optional resolution upsell from request body
+  let resolution: "480p" | "720p" | "1080p" = "480p";
   try {
-    const result = await approveFinal(id);
+    const body = await req.json().catch(() => ({}));
+    if (body.resolution === "720p" || body.resolution === "1080p") {
+      resolution = body.resolution;
+    }
+  } catch { /* ignore parse errors — use default */ }
+
+  try {
+    const result = await approveFinal(id, resolution);
     return NextResponse.json({
       message: "Final render started",
+      resolution,
       ...result,
     });
   } catch (err) {

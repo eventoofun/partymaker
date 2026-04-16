@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   ShoppingBag, Plus, Pencil, Trash2, Eye, EyeOff,
-  Package, TrendingUp, ShoppingCart, ExternalLink, ToggleLeft, ToggleRight, X, Check,
+  Package, TrendingUp, ShoppingCart, ExternalLink, ToggleLeft, ToggleRight, X, Check, ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -370,6 +370,9 @@ export default function TiendaClient({
   if (!store) {
     return (
       <div>
+        <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+          <ArrowLeft size={14} /> {celebrantName}
+        </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "32px" }}>
           <ShoppingBag size={22} style={{ color: "var(--brand-primary)" }} />
           <h1 style={{ fontSize: "var(--text-2xl)" }}>Tienda del evento</h1>
@@ -403,6 +406,9 @@ export default function TiendaClient({
 
   return (
     <div>
+      <Link href={`/dashboard/eventos/${eventId}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--neutral-500)", fontSize: "0.82rem", fontWeight: 600, textDecoration: "none", marginBottom: "20px" }}>
+        <ArrowLeft size={14} /> {celebrantName}
+      </Link>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>

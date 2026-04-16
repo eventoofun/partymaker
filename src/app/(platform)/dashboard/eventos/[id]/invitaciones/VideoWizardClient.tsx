@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check, Play, ArrowLeft, ArrowRight,
@@ -44,6 +45,7 @@ interface VideoProject {
   finalVideoUrl?: string | null;
   regenerationCount: number;
   maxRegenerations: number;
+  animationPaid: boolean;
 }
 
 interface Props {
@@ -273,6 +275,233 @@ function AudioDropzone({ preview, onFile }: { preview: string | null; onFile: (f
   );
 }
 
+// ─── GenieUpsell block (aparece en paso 2 cuando la imagen está lista) ────────
+
+function getUpsellCopy(eventType: string, celebrantName: string, celebrantAge?: number | null) {
+  const name = celebrantName;
+
+  if (eventType === "birthday") {
+    if (celebrantAge != null && celebrantAge <= 12) {
+      return {
+        headline: `¿Lo ves? ${name} ya está increíble... 😍`,
+        body: `Pero imagínate que esa imagen se mueve, que ${name} cobra vida y se convierte en el héroe que sus amigos recordarán para siempre. Por solo **2,99 €**, El Genio lo hace realidad. ¿Se lo merece?`,
+        emoji: "🎂",
+      };
+    }
+    return {
+      headline: `La imagen ya es mágica... pero animada es ÉPICA. 🔥`,
+      body: `Por **2,99 €**, El Genio convierte este retrato de ${name} en una videoinvitación que nadie olvidará. El momento del impacto es cuando llega el vídeo.`,
+      emoji: "🎉",
+    };
+  }
+
+  if (eventType === "wedding") {
+    return {
+      headline: `Qué momento tan especial... 💍`,
+      body: `Por **2,99 €**, El Genio puede animar este retrato para que cuente vuestra historia antes de que empiece la magia. Una videoinvitación que los invitados guardarán para siempre.`,
+      emoji: "💍",
+    };
+  }
+
+  if (eventType === "graduation") {
+    return {
+      headline: `El logro merece más que una imagen. 🎓`,
+      body: `Por **2,99 €**, El Genio convierte este retrato de ${name} en un vídeo que captura todo el esfuerzo y la emoción de este momento histórico.`,
+      emoji: "🎓",
+    };
+  }
+
+  if (eventType === "bachelor") {
+    return {
+      headline: `¡La despedida debe recordarse con estilo! 🥂`,
+      body: `Por **2,99 €**, El Genio anima la imagen y crea una videoinvitación que el/la protagonista nunca olvidará. ¿Quién se niega a eso?`,
+      emoji: "🥂",
+    };
+  }
+
+  if (eventType === "communion") {
+    return {
+      headline: `Un día único merece una invitación única. ✝️`,
+      body: `Por **2,99 €**, El Genio da vida a este retrato de ${name} y crea una videoinvitación que los familiares guardarán como recuerdo para siempre.`,
+      emoji: "✝️",
+    };
+  }
+
+  return {
+    headline: `La imagen es preciosa... el vídeo será épico. ✨`,
+    body: `Por **2,99 €**, El Genio anima este retrato y crea una videoinvitación que sorprenderá a todos los invitados.`,
+    emoji: "🎉",
+  };
+}
+
+function renderMarkdownBold(text: string) {
+  return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+    i % 2 === 1
+      ? <strong key={i} style={{ color: "var(--neutral-100)" }}>{part}</strong>
+      : <span key={i}>{part}</span>
+  );
+}
+
+function GenieUpsellBlock({
+  projectId,
+  eventId,
+  eventType,
+  celebrantName,
+  celebrantAge,
+  onPaid,
+}: {
+  projectId: string;
+  eventId: string;
+  eventType: string;
+  celebrantName: string;
+  celebrantAge?: number | null;
+  onPaid: () => void;
+}) {
+  const [loading, setLoading] = useState<"video" | "both" | null>(null);
+  const copy = getUpsellCopy(eventType, celebrantName, celebrantAge);
+
+  async function handleUpsell(product: "video" | "both") {
+    setLoading(product);
+    try {
+      const res = await fetch(`/api/video-projects/${projectId}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as { error?: string }).error ?? "Error iniciando el pago");
+      }
+      const { url } = await res.json() as { url: string };
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error inesperado");
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, rgba(139,92,246,0.18) 0%, rgba(245,158,11,0.12) 100%)",
+      border: "1px solid rgba(139,92,246,0.4)",
+      borderRadius: "16px",
+      padding: "20px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "14px",
+    }}>
+      {/* Genio + headline */}
+      <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/genio/genio.png"
+          alt="El Genio"
+          style={{ width: "56px", objectFit: "contain", flexShrink: 0, animation: "genieLevitate 3s ease-in-out infinite" }}
+        />
+        <div>
+          <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--neutral-100)", margin: "0 0 6px" }}>
+            {copy.headline}
+          </p>
+          <p style={{ fontSize: "0.82rem", color: "var(--neutral-400)", margin: 0, lineHeight: 1.5 }}>
+            {renderMarkdownBold(copy.body)}
+          </p>
+        </div>
+      </div>
+
+      {/* CTAs */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <button
+          onClick={() => handleUpsell("video")}
+          disabled={loading !== null}
+          style={{
+            padding: "13px 18px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, var(--brand-primary), #f59e0b)",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "0.9rem",
+            cursor: loading !== null ? "not-allowed" : "pointer",
+            opacity: loading !== null ? 0.7 : 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>
+            {loading === "video"
+              ? "Redirigiendo al pago…"
+              : "🎬 ¡Quiero la videoinvitación animada!"}
+          </span>
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, opacity: 0.9 }}>2,99 €</span>
+        </button>
+
+        <button
+          onClick={() => handleUpsell("both")}
+          disabled={loading !== null}
+          style={{
+            padding: "13px 18px",
+            borderRadius: "10px",
+            border: "1px solid rgba(139,92,246,0.5)",
+            background: "rgba(139,92,246,0.12)",
+            color: "var(--neutral-100)",
+            fontWeight: 600,
+            fontSize: "0.87rem",
+            cursor: loading !== null ? "not-allowed" : "pointer",
+            opacity: loading !== null ? 0.7 : 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>
+            {loading === "both"
+              ? "Redirigiendo al pago…"
+              : "🎬🎙️ Vídeo + Retrato que habla (InfiniteTalk)"}
+          </span>
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, opacity: 0.85 }}>4,99 €</span>
+        </button>
+
+        <a
+          href={`/dashboard/eventos/${eventId}/invitacion-hablante`}
+          style={{
+            padding: "11px 18px",
+            borderRadius: "10px",
+            border: "1px solid rgba(255,255,255,0.1)",
+            background: "transparent",
+            color: "var(--neutral-400)",
+            fontWeight: 500,
+            fontSize: "0.82rem",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>🎙️ Solo InfiniteTalk (retrato que habla)</span>
+          <span style={{ fontSize: "0.82rem" }}>2,99 €</span>
+        </a>
+
+        <button
+          onClick={onPaid}
+          disabled={loading !== null}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--neutral-600)",
+            fontSize: "0.76rem",
+            cursor: "pointer",
+            padding: "4px",
+            textDecoration: "underline",
+          }}
+        >
+          No gracias, me quedo con la imagen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Processing spinner ───────────────────────────────────────────────────────
 
 function ProcessingState({ status }: { status: string }) {
@@ -333,11 +562,16 @@ function getInitialStep(status: string): number {
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
 export default function VideoWizardClient({ eventId, event, existingProject }: Props) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [step, setStep] = useState(() =>
     existingProject ? getInitialStep(existingProject.status) : 0,
   );
   const [project, setProject] = useState<VideoProject | null>(existingProject ?? null);
   const [loading, setLoading] = useState(false);
+  // Controla si el upsell está "omitido" (usuario hizo clic en "No gracias")
+  const [upsellDismissed, setUpsellDismissed] = useState(false);
 
   // Paso 0: fotos y audio
   const [mode, setMode] = useState<"visual" | "lipsync">("visual");
@@ -355,6 +589,28 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   const [sceneDescription, setSceneDescription] = useState(existingProject?.sceneDescription ?? "");
   const [styleDescription, setStyleDescription] = useState(existingProject?.styleDescription ?? "");
   const [durationSeconds, setDurationSeconds] = useState(existingProject?.durationSeconds ?? 8);
+
+  // ── Detectar retorno desde Stripe (?paid=1&pid=…) ──
+  useEffect(() => {
+    const paid = searchParams.get("paid");
+    const pid  = searchParams.get("pid");
+    if (paid !== "1" || !pid) return;
+
+    // Limpiar los query params para evitar reactivaciones
+    router.replace(window.location.pathname, { scroll: false });
+
+    // Refrescar el proyecto desde el servidor para obtener animationPaid: true
+    fetch(`/api/video-projects/${pid}`)
+      .then(r => r.ok ? r.json() as Promise<VideoProject> : null)
+      .then(data => {
+        if (data) {
+          setProject(data);
+          toast.success("🎉 ¡Pago completado! El Genio ya puede empezar la animación.");
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Polling cuando el Genio está trabajando ──
   const isPolling = project && [
@@ -874,9 +1130,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             </div>
           ) : project?.processedImageUrl ? (
             <>
-              <GenieTip>
-                ¡El Genio ha hecho su magia! Aquí está la imagen del protagonista transformada. Si te gusta, anímala para ver cómo se mueve. Si no, pide otra versión. ✨
-              </GenieTip>
+              {/* Imagen generada por NanaBanana */}
               <div>
                 <div style={{ borderRadius: "16px", overflow: "hidden", background: "#000", aspectRatio: "9/16", maxHeight: "400px", margin: "0 auto" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -888,36 +1142,55 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  onClick={handleRegenerateImage}
-                  disabled={loading || regenLeft <= 0}
-                  style={{
-                    flex: 1, padding: "12px", borderRadius: "10px",
-                    border: "1px solid var(--neutral-700)", background: "transparent",
-                    color: "var(--neutral-300)", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-                    opacity: regenLeft <= 0 ? 0.4 : 1,
-                  }}
-                >
-                  {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
-                  {regenLeft <= 0 ? "Sin magias" : `Nueva imagen (${regenLeft})`}
-                </button>
-                <button
-                  onClick={handleApproveImage}
-                  disabled={loading}
-                  style={{
-                    flex: 1, padding: "12px", borderRadius: "10px", border: "none",
-                    background: "var(--brand-primary)", color: "#fff", fontWeight: 600,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-                    opacity: loading ? 0.6 : 1,
-                  }}
-                >
-                  {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={16} />}
-                  ¡Animar la imagen!
-                </button>
-              </div>
+              {/* ── Upsell del Genio (solo si no está pagado y no fue omitido) ── */}
+              {!project.animationPaid && !upsellDismissed ? (
+                <GenieUpsellBlock
+                  projectId={project.id}
+                  eventId={eventId}
+                  eventType={event.type}
+                  celebrantName={event.celebrantName}
+                  celebrantAge={event.celebrantAge}
+                  onPaid={() => setUpsellDismissed(true)}
+                />
+              ) : (
+                <>
+                  <GenieTip>
+                    {project.animationPaid
+                      ? "¡Genial! El pago está confirmado. Ahora pulsa «¡Animar!» para que El Genio dé vida a la imagen. ✨"
+                      : "¡El Genio ha hecho su magia! Si te gusta la imagen, anímala. Si no, pide otra versión. ✨"}
+                  </GenieTip>
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <button
+                      onClick={handleRegenerateImage}
+                      disabled={loading || regenLeft <= 0}
+                      style={{
+                        flex: 1, padding: "12px", borderRadius: "10px",
+                        border: "1px solid var(--neutral-700)", background: "transparent",
+                        color: "var(--neutral-300)", cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+                        opacity: regenLeft <= 0 ? 0.4 : 1,
+                      }}
+                    >
+                      {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <RefreshCw size={16} />}
+                      {regenLeft <= 0 ? "Sin magias" : `Nueva imagen (${regenLeft})`}
+                    </button>
+                    <button
+                      onClick={handleApproveImage}
+                      disabled={loading}
+                      style={{
+                        flex: 1, padding: "12px", borderRadius: "10px", border: "none",
+                        background: "var(--brand-primary)", color: "#fff", fontWeight: 600,
+                        cursor: loading ? "not-allowed" : "pointer",
+                        display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
+                        opacity: loading ? 0.6 : 1,
+                      }}
+                    >
+                      {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={16} />}
+                      ¡Animar la imagen!
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <ProcessingState status="image_processing" />

@@ -8,7 +8,7 @@ import {
   Music, Camera, Car, Cake, Gamepad2, Mic2, Star,
   CheckCircle, XCircle, HelpCircle, Loader2,
   Share2, Check, ListOrdered, ShoppingBag, X, Zap,
-  Image as ImageIcon, Heart, Upload,
+  Image as ImageIcon, Heart, Upload, Play, Pause, Volume2, VolumeX,
 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -60,6 +60,7 @@ export interface VideoData {
   status: string;
   videoUrlHorizontal: string | null;
   thumbnailUrl: string | null;
+  aspectRatio?: "9:16" | "16:9" | "1:1";
 }
 
 export interface ItineraryItem {
@@ -118,8 +119,53 @@ const TYPE_EMOJI: Record<string, string> = {
 
 const TYPE_COLOR: Record<string, string> = {
   birthday: "#FF4D6D", wedding: "#C4956A", graduation: "#00C2D1",
-  bachelor: "#FFB300", communion: "#A78BFA", baptism: "#67E8F9",
-  christmas: "#DC2626", corporate: "#6B7280", other: "#FF4D6D",
+  bachelor: "#FF3DAA", communion: "#A78BFA", baptism: "#60C0FA",
+  christmas: "#EF4444", corporate: "#00C2D1", other: "#FF4D6D",
+};
+
+// Birthday sub-theme: brighter for kids, classic for adults
+function getBirthdayColor(age: number | null): string {
+  if (age !== null && age < 13) return "#FF6B35"; // warm orange — kids party
+  return "#FF4D6D"; // hot pink — teen/adult
+}
+
+// Per-type gradient (hero badge + accent elements)
+const TYPE_GRADIENT: Record<string, string> = {
+  birthday:   "linear-gradient(135deg,#FF4D6D 0%,#FFB300 100%)",
+  wedding:    "linear-gradient(135deg,#C4956A 0%,#F5C842 100%)",
+  graduation: "linear-gradient(135deg,#00C2D1 0%,#6366F1 100%)",
+  bachelor:   "linear-gradient(135deg,#FF3DAA 0%,#A855F7 100%)",
+  communion:  "linear-gradient(135deg,#A78BFA 0%,#22C55E 100%)",
+  baptism:    "linear-gradient(135deg,#60C0FA 0%,#93C5FD 100%)",
+  christmas:  "linear-gradient(135deg,#EF4444 0%,#16A34A 100%)",
+  corporate:  "linear-gradient(135deg,#00C2D1 0%,#6366F1 100%)",
+  other:      "linear-gradient(135deg,#A78BFA 0%,#FF4D6D 100%)",
+};
+
+// Per-type floating particles shown in hero
+const TYPE_PARTICLES: Record<string, string[]> = {
+  birthday:   ["🎂","🎈","✨","🎊","🎁","🎀","⭐","🥳"],
+  wedding:    ["💍","🌸","💐","✨","🕊️","🥂","💎","🌹"],
+  graduation: ["🎓","📚","🌟","✨","🏆","🎉","💫","📜"],
+  bachelor:   ["🥂","🍾","💃","✨","👑","🌙","💜","🎶"],
+  communion:  ["✝️","🕊️","🌸","✨","🌿","💒","🌼","📿"],
+  baptism:    ["👶","💧","🕊️","✨","🌸","💙","⭐","🌊"],
+  christmas:  ["🎄","❄️","🎅","✨","⭐","🎁","☃️","🕯️"],
+  corporate:  ["🏆","💼","✨","🌟","🎯","📊","🤝","🚀"],
+  other:      ["🎉","✨","🌟","🎊","💫","🎈","🎶","🥳"],
+};
+
+// Per-type hero tagline
+const TYPE_TAGLINE: Record<string, string> = {
+  birthday:   "¡Que empiece la magia!",
+  wedding:    "Un día para recordar siempre",
+  graduation: "El futuro te espera con los brazos abiertos",
+  bachelor:   "La última gran aventura",
+  communion:  "Un momento sagrado compartido",
+  baptism:    "Bienvenido/a al mundo",
+  christmas:  "La magia de la Navidad",
+  corporate:  "Juntos, más lejos",
+  other:      "Un momento único e irrepetible",
 };
 
 const ITINERARY_ICONS: Record<string, React.ElementType> = {
@@ -1884,10 +1930,375 @@ function EventStoreSection({ store, eventId, color }: { store: StoreData; eventI
   );
 }
 
+// ─── VIDEO PLAYER ────────────────────────────────────────────────────────────
+
+function VideoPlayer({
+  src,
+  poster,
+  hintAspectRatio,
+  color,
+}: {
+  src: string;
+  poster?: string;
+  hintAspectRatio?: "9:16" | "16:9" | "1:1";
+  color: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  // Start with hint from DB; override once video metadata loads
+  const [isPortrait, setIsPortrait] = useState(hintAspectRatio === "9:16");
+
+  const handleLoadedMetadata = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    // Trust the actual pixel dimensions of the video file
+    setIsPortrait(v.videoWidth < v.videoHeight);
+  };
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) { v.play(); setPlaying(true); }
+    else           { v.pause(); setPlaying(false); }
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setMuted(v.muted);
+  };
+
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      background: isPortrait ? "#000" : "transparent",
+      borderRadius: "20px",
+      overflow: "hidden",
+      transition: "background 0.3s ease",
+    }}>
+      <div style={{
+        position: "relative",
+        width: isPortrait ? "min(380px, 100%)" : "100%",
+        transition: "width 0.3s ease",
+      }}>
+        {/* The video element — no native controls, we draw our own */}
+        <video
+          ref={videoRef}
+          poster={poster}
+          preload="metadata"
+          playsInline
+          onLoadedMetadata={handleLoadedMetadata}
+          onClick={togglePlay}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          style={{
+            width: "100%",
+            height: "auto",       // always respect the video's natural ratio
+            display: "block",
+            cursor: "pointer",
+            borderRadius: "16px",
+            objectFit: "contain", // safety net: never squish/crop
+          }}
+        >
+          <source src={src} type="video/mp4" />
+        </video>
+
+        {/* Big centre play button — shown only when paused */}
+        {!playing && (
+          <button
+            onClick={togglePlay}
+            aria-label="Reproducir"
+            style={{
+              position: "absolute",
+              top: "50%", left: "50%",
+              transform: "translate(-50%,-50%)",
+              width: "72px", height: "72px",
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.65)",
+              border: `3px solid ${color}`,
+              color: "white",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+              backdropFilter: "blur(8px)",
+              boxShadow: `0 0 0 6px ${color}30`,
+              transition: "transform 0.15s ease, box-shadow 0.15s ease",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translate(-50%,-50%) scale(1.1)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translate(-50%,-50%) scale(1)"; }}
+          >
+            <Play size={28} fill="white" style={{ marginLeft: "4px" }} />
+          </button>
+        )}
+
+        {/* Bottom-right controls — shown when playing */}
+        {playing && (
+          <div style={{
+            position: "absolute",
+            bottom: "14px", right: "14px",
+            display: "flex", gap: "8px",
+          }}>
+            <button
+              onClick={toggleMute}
+              aria-label={muted ? "Activar sonido" : "Silenciar"}
+              style={{
+                width: "38px", height: "38px",
+                borderRadius: "50%",
+                background: "rgba(0,0,0,0.6)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                color: "white",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+            <button
+              onClick={togglePlay}
+              aria-label="Pausar"
+              style={{
+                width: "38px", height: "38px",
+                borderRadius: "50%",
+                background: "rgba(0,0,0,0.6)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                color: "white",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              <Pause size={16} fill="white" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
+// ─── ADS SYSTEM ──────────────────────────────────────────────────────────────
+
+interface MockAd {
+  id: string;
+  logo: string;            // emoji
+  name: string;
+  tagline: string;
+  cta: string;
+  accentColor: string;
+}
+
+const MOCK_ADS: Record<string, MockAd[]> = {
+  birthday: [
+    { id: "b1", logo: "🎪", name: "MagiParty", tagline: "Animadores y shows para cumpleaños que nunca se olvidan", cta: "Ver precios", accentColor: "#FF6B35" },
+    { id: "b2", logo: "🎂", name: "Dulces Momentos", tagline: "Tartas personalizadas y candy bars únicos para tu celebración", cta: "Pedir catálogo", accentColor: "#FF4D6D" },
+    { id: "b3", logo: "📸", name: "FotoFiesta", tagline: "Fotomatón con impresión instantánea y recuerdos para tus invitados", cta: "Consultar disponibilidad", accentColor: "#FFB300" },
+  ],
+  wedding: [
+    { id: "w1", logo: "💐", name: "Flores & Sueños", tagline: "Decoración floral de lujo para el día más especial de tu vida", cta: "Ver portfolio", accentColor: "#C4956A" },
+    { id: "w2", logo: "🎵", name: "Orquesta Elite", tagline: "Música en vivo para bodas inolvidables — desde jazz hasta flamenco", cta: "Ver repertorio", accentColor: "#F5C842" },
+    { id: "w3", logo: "📷", name: "Momentos Eternos", tagline: "Fotografía y vídeo de bodas con estilo cinematográfico exclusivo", cta: "Ver reportajes", accentColor: "#C4956A" },
+  ],
+  graduation: [
+    { id: "g1", logo: "🎓", name: "OrlasPlus", tagline: "Orlas, diplomas enmarcados y recuerdos de graduación personalizados", cta: "Solicitar presupuesto", accentColor: "#00C2D1" },
+    { id: "g2", logo: "🥂", name: "Brindis Catering", tagline: "Catering y cócteles para celebraciones de graduación con estilo", cta: "Ver menús", accentColor: "#6366F1" },
+    { id: "g3", logo: "🚌", name: "Rutas Party Bus", tagline: "Party bus para grupos — celebra la graduación con toda la clase", cta: "Ver rutas", accentColor: "#00C2D1" },
+  ],
+  bachelor: [
+    { id: "bch1", logo: "🥂", name: "Noche VIP", tagline: "Reservas en los mejores clubs y rooftops — experiencias exclusivas", cta: "Ver experiencias", accentColor: "#FF3DAA" },
+    { id: "bch2", logo: "💆", name: "Spa & Chill", tagline: "Paquetes de spa y bienestar para grupos — relájate antes del gran día", cta: "Reservar ahora", accentColor: "#A855F7" },
+    { id: "bch3", logo: "🎀", name: "Detalles Bride", tagline: "Kits de despedida, bandas, coronas y accesorios para la novia y amigas", cta: "Ver packs", accentColor: "#FF3DAA" },
+  ],
+  communion: [
+    { id: "c1", logo: "📿", name: "Recuerdos Sagrados", tagline: "Detalles y recuerdos de comunión artesanales para regalar a tus invitados", cta: "Ver catálogo", accentColor: "#A78BFA" },
+    { id: "c2", logo: "🌸", name: "Banquetes Divinos", tagline: "Salones y menús especiales para banquetes de comunión y bautizo", cta: "Pedir info", accentColor: "#22C55E" },
+    { id: "c3", logo: "📸", name: "Retratos del Alma", tagline: "Reportajes fotográficos de comunión que capturan el momento para siempre", cta: "Ver book", accentColor: "#A78BFA" },
+  ],
+  baptism: [
+    { id: "bt1", logo: "👶", name: "Bebe & Décor", tagline: "Decoración tierna y delicada para bautizos — globos, flores y más", cta: "Ver ideas", accentColor: "#60C0FA" },
+    { id: "bt2", logo: "🍰", name: "Dulce Bienvenida", tagline: "Tartas de bautizo y mesa de dulces para un día lleno de ternura", cta: "Ver modelos", accentColor: "#93C5FD" },
+    { id: "bt3", logo: "🎀", name: "Detalles Bautizo", tagline: "Recordatorios y detalles personalizados para los invitados al bautizo", cta: "Pedir muestra", accentColor: "#60C0FA" },
+  ],
+  christmas: [
+    { id: "xm1", logo: "🎅", name: "Papá Noel Real", tagline: "Visita de Papá Noel a domicilio — magia navideña garantizada", cta: "Reservar visita", accentColor: "#EF4444" },
+    { id: "xm2", logo: "🎄", name: "Decoración XMas", tagline: "Árboles, coronas y decoración navideña profesional para tu hogar o empresa", cta: "Ver servicios", accentColor: "#16A34A" },
+    { id: "xm3", logo: "🍽️", name: "Cenas Navideñas", tagline: "Catering para cenas de empresa y reuniones familiares en Navidad", cta: "Ver menús", accentColor: "#EF4444" },
+  ],
+  corporate: [
+    { id: "co1", logo: "🏛️", name: "Espacios Evento", tagline: "Salas y venues corporativos en las principales ciudades de España", cta: "Ver disponibilidad", accentColor: "#00C2D1" },
+    { id: "co2", logo: "🍽️", name: "Executive Catering", tagline: "Catering premium para eventos de empresa, presentaciones y team buildings", cta: "Solicitar menú", accentColor: "#6366F1" },
+    { id: "co3", logo: "🎤", name: "Speaker Pro", tagline: "Moderadores, presentadores y conferenciantes para tus eventos corporativos", cta: "Ver perfiles", accentColor: "#00C2D1" },
+  ],
+  other: [
+    { id: "o1", logo: "🎪", name: "EventoMaster", tagline: "Organización integral de eventos — desde la idea hasta el último detalle", cta: "Contactar", accentColor: "#A78BFA" },
+    { id: "o2", logo: "🎵", name: "SonidoFiesta", tagline: "DJ, equipo de sonido e iluminación profesional para todo tipo de eventos", cta: "Ver tarifas", accentColor: "#FF4D6D" },
+    { id: "o3", logo: "📸", name: "RecuerdoPhoto", tagline: "Fotomatón, fotógrafo y vídeo — captura los mejores momentos", cta: "Consultar", accentColor: "#FFB300" },
+  ],
+};
+
+function AdBanner({ eventType, color }: { eventType: string; color: string }) {
+  const ads = MOCK_ADS[eventType] ?? MOCK_ADS.other;
+
+  return (
+    <section style={{
+      maxWidth: "760px", margin: "0 auto",
+      padding: "clamp(40px, 6vw, 60px) 20px 0",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: "20px", flexWrap: "wrap", gap: "8px",
+      }}>
+        <div>
+          <p style={{
+            fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase",
+            letterSpacing: "0.1em", color: "var(--neutral-600)", margin: "0 0 4px",
+          }}>
+            Patrocinadores
+          </p>
+          <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--neutral-300)", margin: 0 }}>
+            Empresas que pueden ayudarte con este evento
+          </h2>
+        </div>
+        <a
+          href="mailto:ads@cumplefy.com?subject=Anunciarse%20en%20Cumplefy"
+          style={{
+            fontSize: "0.73rem", fontWeight: 600,
+            color: "var(--neutral-600)", textDecoration: "none",
+            padding: "5px 12px", borderRadius: "999px",
+            border: "1px solid rgba(255,255,255,0.07)",
+            whiteSpace: "nowrap",
+            transition: "color 0.2s",
+          }}
+        >
+          ¿Quieres anunciarte? →
+        </a>
+      </div>
+
+      {/* Ad cards */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+        gap: "12px",
+      }}>
+        {ads.map((ad) => (
+          <div
+            key={ad.id}
+            style={{
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              padding: "20px",
+              display: "flex", flexDirection: "column", gap: "10px",
+              position: "relative", overflow: "hidden",
+            }}
+          >
+            {/* accent line */}
+            <div style={{
+              position: "absolute", top: 0, left: 0, right: 0, height: "2px",
+              background: `linear-gradient(90deg, ${ad.accentColor}, transparent)`,
+            }} />
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{
+                fontSize: "1.6rem", lineHeight: 1,
+                width: "40px", height: "40px",
+                borderRadius: "10px",
+                background: `${ad.accentColor}18`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                {ad.logo}
+              </span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "white" }}>{ad.name}</div>
+                <div style={{
+                  fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.06em",
+                  color: "var(--neutral-600)", fontWeight: 600,
+                }}>
+                  Anuncio
+                </div>
+              </div>
+            </div>
+
+            <p style={{
+              fontSize: "0.78rem", color: "var(--neutral-400)",
+              lineHeight: 1.55, margin: 0, flex: 1,
+            }}>
+              {ad.tagline}
+            </p>
+
+            <button
+              onClick={() => {
+                const subject = encodeURIComponent(`Interés en publicidad — ${ad.name}`);
+                window.open(`mailto:ads@cumplefy.com?subject=${subject}`, "_blank");
+              }}
+              style={{
+                padding: "8px 14px", borderRadius: "8px",
+                background: `${ad.accentColor}18`, border: `1px solid ${ad.accentColor}30`,
+                color: ad.accentColor, fontSize: "0.76rem", fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+                textAlign: "center",
+                transition: "background 0.2s",
+              }}
+            >
+              {ad.cta}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Provider CTA */}
+      <div style={{
+        marginTop: "16px", padding: "16px 20px",
+        borderRadius: "12px",
+        background: `${color}08`,
+        border: `1px solid ${color}18`,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: "12px", flexWrap: "wrap",
+      }}>
+        <div>
+          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--neutral-300)" }}>
+            ¿Eres proveedor de eventos?
+          </div>
+          <div style={{ fontSize: "0.74rem", color: "var(--neutral-600)", marginTop: "2px" }}>
+            Llega a miles de organizadores de fiestas. Desde 29 €/mes por nicho y zona.
+          </div>
+        </div>
+        <a
+          href="mailto:ads@cumplefy.com?subject=Quiero%20anunciarme%20en%20Cumplefy"
+          style={{
+            padding: "9px 18px", borderRadius: "8px",
+            background: color, color: "white",
+            fontSize: "0.78rem", fontWeight: 700,
+            textDecoration: "none", whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Anunciarme ahora
+        </a>
+      </div>
+    </section>
+  );
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+
 export default function EpicEventClient({ event, items, latestVideo, itinerary, store }: Props) {
-  const color = event.brandingColor ?? TYPE_COLOR[event.type] ?? "#FF4D6D";
+  // Enhanced per-type color: for birthdays, consider age
+  const baseColor = event.type === "birthday"
+    ? getBirthdayColor(event.celebrantAge)
+    : TYPE_COLOR[event.type] ?? "#FF4D6D";
+  const color = event.brandingColor ?? baseColor;
+  const gradient = TYPE_GRADIENT[event.type] ?? `linear-gradient(135deg,${color},#FFB300)`;
+  const particles = TYPE_PARTICLES[event.type] ?? TYPE_PARTICLES.other;
+  const tagline = TYPE_TAGLINE[event.type] ?? "";
   const typeLabel = TYPE_LABEL[event.type] ?? "Celebración";
   const slug = event.slug;
   const publicUrl = typeof window !== "undefined" ? window.location.href : `https://cumplefy.com/e/${slug}`;
@@ -2040,7 +2451,23 @@ export default function EpicEventClient({ event, items, latestVideo, itinerary, 
             }} />
           </>
         ) : (
-          <HeroCanvas />
+          <>
+            <HeroCanvas />
+            {/* Floating type-themed particles */}
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+              {particles.map((p, i) => (
+                <span key={i} style={{
+                  position: "absolute",
+                  left: `${10 + (i * 13.5) % 80}%`,
+                  top: `${5 + (i * 17) % 80}%`,
+                  fontSize: `${0.8 + (i % 3) * 0.4}rem`,
+                  opacity: 0.18 + (i % 4) * 0.05,
+                  animation: `float-slow ${5 + (i % 4)}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.7}s`,
+                }}>{p}</span>
+              ))}
+            </div>
+          </>
         )}
 
         <div style={{
@@ -2097,12 +2524,27 @@ export default function EpicEventClient({ event, items, latestVideo, itinerary, 
           >
             ¡Estás invitado/a a la{" "}
             <span style={{
-              background: `linear-gradient(135deg, ${color}, #FFB300)`,
+              background: gradient,
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}>
               fiesta de {event.celebrantName}
             </span>!
           </motion.h1>
+
+          {tagline && (
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.24, duration: 0.6 }}
+              style={{
+                color, fontSize: "1.1rem", fontWeight: 600,
+                fontStyle: "italic", opacity: 0.85, margin: 0,
+                letterSpacing: "0.01em",
+              }}
+            >
+              {tagline}
+            </motion.p>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -2226,15 +2668,15 @@ export default function EpicEventClient({ event, items, latestVideo, itinerary, 
               border: `1px solid ${color}25`,
             }}>
               {latestVideo.status === "ready" && latestVideo.videoUrlHorizontal ? (
-                <video
-                  controls
+                <VideoPlayer
+                  src={latestVideo.videoUrlHorizontal}
                   poster={latestVideo.thumbnailUrl ?? undefined}
-                  style={{ width: "100%", display: "block", borderRadius: "20px" }}
-                >
-                  <source src={latestVideo.videoUrlHorizontal} type="video/mp4" />
-                </video>
+                  hintAspectRatio={latestVideo.aspectRatio}
+                  color={color}
+                />
               ) : (
                 <div style={{
+                  width: "100%",
                   aspectRatio: "16/9",
                   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                   gap: "16px", position: "relative",
@@ -2411,6 +2853,9 @@ export default function EpicEventClient({ event, items, latestVideo, itinerary, 
         </Section>
 
       </div>
+
+      {/* ══ ADS ════════════════════════════════════════════════════════════ */}
+      <AdBanner eventType={event.type} color={color} />
 
       {/* ══ EL ANIMADOR ════════════════════════════════════════════════════ */}
       <ElAnimador
