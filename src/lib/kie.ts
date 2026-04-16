@@ -37,7 +37,8 @@ export interface KieTaskResult {
 
 interface KieApiResponse<T> {
   code: number;
-  message: string;
+  msg?: string;      // Kie.ai uses "msg", not "message"
+  message?: string;  // kept for safety in case it varies
   data: T;
 }
 
@@ -64,7 +65,8 @@ async function kiePost<T>(path: string, body: unknown): Promise<T> {
   }
   const json = (await res.json()) as KieApiResponse<T>;
   if (json.code !== 200) {
-    throw new Error(`KIE.ai POST ${path} error ${json.code}: ${json.message}`);
+    const errMsg = json.msg ?? json.message ?? "(no message)";
+    throw new Error(`KIE.ai POST ${path} error ${json.code}: ${errMsg}`);
   }
   return json.data;
 }
@@ -79,7 +81,8 @@ async function kieGet<T>(path: string): Promise<T> {
   }
   const json = (await res.json()) as KieApiResponse<T>;
   if (json.code !== 200) {
-    throw new Error(`KIE.ai GET ${path} error ${json.code}: ${json.message}`);
+    const errMsg = json.msg ?? json.message ?? "(no message)";
+    throw new Error(`KIE.ai GET ${path} error ${json.code}: ${errMsg}`);
   }
   return json.data;
 }
