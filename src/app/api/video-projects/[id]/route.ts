@@ -9,7 +9,7 @@ import { db } from "@/db";
 import { videoProjects, generationJobs } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getEventRole, canEdit } from "@/lib/permissions";
-import { pollAndSyncJobStatus } from "@/lib/video-invitations/orchestrator";
+import { pollAndSyncJobStatus, generatePreview } from "@/lib/video-invitations/orchestrator";
 
 const patchSchema = z.object({
   protagonistName: z.string().min(1).max(100).optional(),
@@ -57,6 +57,17 @@ export async function GET(_req: Request, { params }: RouteContext) {
     } catch {
       // Never let polling errors break the GET response
     }
+  }
+
+  // For lipsync projects stuck at image_ready: auto-trigger preview.
+  // Safe because generatePreview() does an atomic DB claim — concurrent calls are no-ops.
+  if (project.status === "image_ready" && project.mode === "lipsync" && project.audioPath) {
+    generatePreview(id).catch((err) =>
+      console.error(
+        `[get-project] Auto-trigger preview failed for ${id}:`,
+        err instanceof Error ? err.message : err,
+      ),
+    );
   }
 
   // Include latest job for status polling fallback

@@ -27,6 +27,21 @@ export async function POST(_req: Request, { params }: RouteContext) {
   const role = await getEventRole(project.eventId, userId);
   if (!canEdit(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // El modo visual requiere pago del upsell de animación.
+  // El modo lipsync tiene su propio flujo (publish-lipsync) y no requiere este pago.
+  if (project.mode === "visual" && !project.animationPaid) {
+    return NextResponse.json(
+      { error: "Payment required", code: "ANIMATION_UNPAID" },
+      { status: 402 },
+    );
+  }
+
+  // If already past image_ready (auto-triggered server-side), treat as success.
+  const alreadyAdvanced = ["preview_queued", "preview_processing", "preview_ready", "awaiting_approval", "published"].includes(project.status);
+  if (alreadyAdvanced) {
+    return NextResponse.json({ message: "Preview already in progress", status: project.status });
+  }
+
   try {
     const result = await generatePreview(id);
     return NextResponse.json({

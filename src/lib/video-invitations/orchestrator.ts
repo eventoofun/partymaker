@@ -202,6 +202,20 @@ export async function generatePreview(
 
   assertTransition(project.status as VideoProjectStatus, "preview_queued");
 
+  // Atomically claim image_ready → preview_queued BEFORE any Kie.ai work.
+  // If two requests race here, only one wins — the other gets null and throws.
+  const [claimed] = await db
+    .update(videoProjects)
+    .set({ status: "preview_queued", updatedAt: new Date() })
+    .where(and(eq(videoProjects.id, projectId), eq(videoProjects.status, "image_ready")))
+    .returning();
+
+  if (!claimed) {
+    throw new Error(
+      "El preview ya está siendo generado (otro proceso se adelantó).",
+    );
+  }
+
   // Use the NanaBanana processed image as first frame (fallback to original)
   const firstFrameUrl = project.processedImageUrl
     ?? await getSignedAssetUrl(project.protagonistImagePath, 3600);
@@ -232,21 +246,29 @@ export async function generatePreview(
     })
     .returning();
 
-  // Submit to Kie.ai (lipsync vs visual)
+  // Submit to Kie.ai (lipsync vs visual) — if this throws, reset status to image_ready
   let submitted: { taskId: string; modelId: string; requestPayload: Record<string, unknown> };
-
-  if (project.mode === "lipsync" && project.audioPath) {
-    const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
-    submitted = await submitLipsync({ imageUrl: firstFrameUrl, audioUrl });
-  } else {
-    submitted = await submitSeedancePreview({
-      prompt: compiled.visualPrompt,
-      firstFrameUrl,
-      aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-      resolution: "480p",
-      durationSeconds: project.durationSeconds,
-      generateAudio: true,
-    });
+  try {
+    if (project.mode === "lipsync" && project.audioPath) {
+      const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
+      submitted = await submitLipsync({ imageUrl: firstFrameUrl, audioUrl });
+    } else {
+      submitted = await submitSeedancePreview({
+        prompt: compiled.visualPrompt,
+        firstFrameUrl,
+        aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+        resolution: "480p",
+        durationSeconds: project.durationSeconds,
+        generateAudio: true,
+      });
+    }
+  } catch (err) {
+    // Roll back: reset project to image_ready so the user can retry
+    await db
+      .update(videoProjects)
+      .set({ status: "image_ready", updatedAt: new Date() })
+      .where(eq(videoProjects.id, projectId));
+    throw err;
   }
 
   // Create generation job record
@@ -264,12 +286,6 @@ export async function generatePreview(
       startedAt: new Date(),
     })
     .returning();
-
-  // Advance project state
-  await db
-    .update(videoProjects)
-    .set({ status: "preview_queued", updatedAt: new Date() })
-    .where(eq(videoProjects.id, projectId));
 
   return { jobId: job.id, taskId: submitted.taskId, model: submitted.modelId };
 }
@@ -381,6 +397,18 @@ async function handleImageJobSuccess(
   console.log(
     `[kie-callback] Image job ${job.id} completed → project ${job.projectId} → image_ready`,
   );
+
+  // For lipsync projects: auto-trigger preview generation server-side.
+  // This means the pipeline advances even if the browser is closed.
+  const project = await getProjectOrThrow(job.projectId);
+  if (project.mode === "lipsync" && project.audioPath) {
+    generatePreview(job.projectId).catch((err) =>
+      console.error(
+        `[auto-preview] Failed to auto-trigger preview for ${job.projectId}:`,
+        err instanceof Error ? err.message : err,
+      ),
+    );
+  }
 }
 
 /**
@@ -422,18 +450,26 @@ async function handleVideoJobSuccess(
     })
     .where(eq(generationJobs.id, job.id));
 
-  // Advance project state
-  const projectNextStatus = job.kind === "preview" ? "awaiting_approval" : "final_ready";
+  // Advance project state.
+  // Final videos auto-publish so they immediately appear on the public event page.
+  const projectNextStatus =
+    job.kind === "preview" ? "awaiting_approval" :
+    job.kind === "final"   ? "published"          : "final_ready";
+
   const videoUrlField =
     job.kind === "preview"
       ? { previewVideoUrl: stored.publicUrl }
       : { finalVideoUrl: stored.publicUrl };
+
+  const extraFields =
+    job.kind === "final" ? { publishedAt: new Date() } : {};
 
   await db
     .update(videoProjects)
     .set({
       status: projectNextStatus,
       ...videoUrlField,
+      ...extraFields,
       updatedAt: new Date(),
     })
     .where(eq(videoProjects.id, job.projectId));
@@ -451,13 +487,15 @@ export interface ApproveFinalResult {
 }
 
 /**
- * User approved the preview. Submit a Seedance 720p final render job.
+ * User approved the preview. Submit a Seedance final render job.
+ * Default resolution: 480p (cost-efficient). Users can upsell to 720p/1080p.
  *
  * ATOMIC: We submit to KIE.ai BEFORE updating the DB, so if the API call
  * fails the project stays at awaiting_approval and can be retried.
  */
 export async function approveFinal(
   projectId: string,
+  resolution: "480p" | "720p" | "1080p" = "480p",
 ): Promise<ApproveFinalResult> {
   const project = await getProjectOrThrow(projectId);
   assertTransition(project.status, "approved_for_final");
@@ -484,11 +522,12 @@ export async function approveFinal(
   });
 
   // Submit to KIE.ai FIRST — if this throws, project stays at awaiting_approval
+  // Default 480p (cost-efficient). Users can upsell to 720p/1080p at checkout.
   const submitted = await submitSeedancePreview({
     prompt: compiled.visualPrompt,
     firstFrameUrl: imageUrl,
     aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-    resolution: "720p",
+    resolution: resolution === "1080p" ? "720p" : resolution, // Seedance max = 720p; 1080p handled by Wan2.7
     durationSeconds: project.durationSeconds,
     generateAudio: true,
   });
