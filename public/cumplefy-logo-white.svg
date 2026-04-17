@@ -1,58 +1,125 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" fill="none">
-  <defs>
-    <linearGradient id="gold-w" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffbe0b"/>
-      <stop offset="100%" stop-color="#ff9933"/>
-    </linearGradient>
-    <filter id="glow-w" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -14 292 90" fill="none">
+<defs>
+  <!-- Golden lamp gradient (same as color version — gold on dark looks iconic) -->
+  <linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="8" y1="18" x2="54" y2="64">
+    <stop offset="0%"   stop-color="#fff5a0"/>
+    <stop offset="18%"  stop-color="#ffda44"/>
+    <stop offset="50%"  stop-color="#ffa520"/>
+    <stop offset="80%"  stop-color="#e06400"/>
+    <stop offset="100%" stop-color="#c04800"/>
+  </linearGradient>
+  <linearGradient id="sg" gradientUnits="userSpaceOnUse" x1="50" y1="12" x2="76" y2="36">
+    <stop offset="0%"   stop-color="#fff0a0"/>
+    <stop offset="35%"  stop-color="#ffda44"/>
+    <stop offset="78%"  stop-color="#ffa520"/>
+    <stop offset="100%" stop-color="#d96000"/>
+  </linearGradient>
+  <linearGradient id="mk" gradientUnits="userSpaceOnUse" x1="70" y1="14" x2="84" y2="-10">
+    <stop offset="0%"   stop-color="#ffda44"/>
+    <stop offset="55%"  stop-color="#ff9933" stop-opacity="0.72"/>
+    <stop offset="100%" stop-color="#ff6ec7" stop-opacity="0.20"/>
+  </linearGradient>
+  <!-- Gold gradient for "fy" -->
+  <linearGradient id="fy" gradientUnits="userSpaceOnUse" x1="0" y1="16" x2="0" y2="50">
+    <stop offset="0%"   stop-color="#ffee66"/>
+    <stop offset="52%"  stop-color="#ffbe0b"/>
+    <stop offset="100%" stop-color="#ff8c00"/>
+  </linearGradient>
+  <!-- Filters -->
+  <filter id="gw" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="gs" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ga" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="7"/>
+  </filter>
+</defs>
 
-  <!-- Lamp body -->
-  <path
-    d="M 28 42 C 16 42 10 36 10 28 C 10 18 18 12 28 12 C 38 12 46 18 46 28 C 46 36 40 42 28 42 Z"
-    fill="white" opacity="0.95"
-  />
-  <!-- Lamp spout -->
-  <path
-    d="M 44 26 C 50 24 54 22 54 18 C 54 15 51 14 48 15 C 46 16 45 18 44 22 Z"
-    fill="white" opacity="0.95"
-  />
-  <!-- Lamp handle -->
-  <path
-    d="M 12 28 C 6 28 4 24 4 20 C 4 16 6 14 10 14"
-    stroke="white" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.95"
-  />
-  <!-- Lamp base -->
-  <rect x="18" y="42" width="20" height="3" rx="1.5" fill="white" opacity="0.7"/>
-  <rect x="15" y="45" width="26" height="3" rx="1.5" fill="white" opacity="0.5"/>
+<!-- Warm ambient glow -->
+<ellipse cx="34" cy="44" rx="32" ry="20" fill="#ffbe0b" opacity="0.10" filter="url(#ga)"/>
 
-  <!-- Smoke wisp -->
-  <path
-    d="M 49 18 C 52 14 50 8 54 5 C 57 3 60 5 58 9 C 56 12 52 11 54 7"
-    stroke="url(#gold-w)" stroke-width="2" stroke-linecap="round" fill="none"
-    filter="url(#glow-w)" opacity="0.9"
-  />
+<!-- Handle -->
+<path d="M 10 42 C 2 40 -1 32 2 24 C 4 18 9 16 14 18"
+  stroke="url(#lg)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path d="M 10 40 C 4 38 2 32 4 26 C 5 22 9 20 14 20"
+  stroke="white" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.28"/>
 
-  <!-- Gold star spark -->
-  <g filter="url(#glow-w)" transform="translate(57, 4)">
-    <path d="M 0 -5 L 1.2 -1.2 L 5 0 L 1.2 1.2 L 0 5 L -1.2 1.2 L -5 0 L -1.2 -1.2 Z"
-          fill="url(#gold-w)"/>
-    <circle cx="7" cy="-3" r="1.2" fill="#ffbe0b" opacity="0.8"/>
-    <circle cx="-6" cy="4" r="0.9" fill="#ffbe0b" opacity="0.6"/>
-    <circle cx="5" cy="5" r="0.7" fill="#ff9933" opacity="0.7"/>
-  </g>
+<!-- Lamp body -->
+<path d="M 14 60 C 6 60 2 52 2 44 C 2 30 10 20 26 18 C 36 16 48 20 52 32 C 56 44 50 56 42 60 Z"
+  fill="url(#lg)"/>
+<path d="M 14 60 C 20 63 30 64 40 62 C 46 60 52 56 52 52 C 52 56 48 62 40 64 C 28 66 14 62 10 58 C 12 60 14 60 14 60 Z"
+  fill="#a03800" opacity="0.30"/>
+<path d="M 7 44 C 14 51 24 54 34 54 C 42 54 50 50 52 44"
+  stroke="white" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.20"/>
+<path d="M 5 35 C 10 42 20 46 30 46 C 40 46 48 42 52 35"
+  stroke="white" stroke-width="0.8" stroke-linecap="round" fill="none" opacity="0.13"/>
+<ellipse cx="22" cy="28" rx="8"   ry="5"   fill="white" opacity="0.22" transform="rotate(-28,22,28)"/>
+<ellipse cx="20" cy="24" rx="3.5" ry="2"   fill="white" opacity="0.42" transform="rotate(-28,20,24)"/>
 
-  <!-- Shine -->
-  <ellipse cx="22" cy="22" rx="5" ry="3.5" fill="white" opacity="0.25" transform="rotate(-20, 22, 22)"/>
+<!-- Spout -->
+<path d="M 50 30 C 54 22 60 14 68 12 C 72 10 76 12 74 18 C 72 22 66 22 62 26 C 58 30 54 34 50 36 Z"
+  fill="url(#sg)"/>
+<path d="M 50 34 C 55 32 60 30 64 28 C 68 26 71 24 72 20 C 71 24 68 28 64 30 C 60 32 55 34 50 36 Z"
+  fill="#c04800" opacity="0.28"/>
+<ellipse cx="72" cy="15" rx="4"   ry="3"   fill="#ffee66" opacity="0.65"/>
+<ellipse cx="72" cy="15" rx="2"   ry="1.5" fill="white"   opacity="0.40"/>
 
-  <!-- Wordmark: white -->
-  <text
-    x="72" y="43"
-    font-family="-apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif"
-    font-size="34" font-weight="800" letter-spacing="-1"
-    fill="white"
-  >Cumplefy</text>
+<!-- Base -->
+<rect x="14" y="58" width="30" height="5" rx="2.5" fill="#e06400"/>
+<rect x="10" y="62" width="38" height="5" rx="2.5" fill="#c04800"/>
+<rect x="16" y="59" width="24" height="1.5" rx="0.75" fill="white" opacity="0.16"/>
+
+<!-- Smoke -->
+<path d="M 72 12 C 74 6 70 0 74 -4 C 77 -7 81 -5 79 -1 C 77 3 71 3 73 -3"
+  stroke="url(#mk)" stroke-width="2.8" stroke-linecap="round" fill="none"
+  filter="url(#gw)" opacity="0.95"/>
+<path d="M 75 8 C 80 4 80 -2 84 -5 C 87 -8 90 -6 88 -2 C 86 1 81 1 83 -5"
+  stroke="url(#mk)" stroke-width="2" stroke-linecap="round" fill="none"
+  filter="url(#gw)" opacity="0.68"/>
+<path d="M 77 4 C 83 0 84 -4 88 -8"
+  stroke="#ffda44" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.38"/>
+
+<!-- Sparkles -->
+<g filter="url(#gs)" transform="translate(80,-8)">
+  <path d="M0-7 1.7-1.7 7 0 1.7 1.7 0 7-1.7 1.7-7 0-1.7-1.7Z" fill="#ffee66"/>
+  <path d="M0-3 .7-.7 3 0 .7.7 0 3-.7.7-3 0-.7-.7Z" fill="white" opacity="0.55"/>
+</g>
+<g filter="url(#gs)" transform="translate(88,-8) scale(.72)">
+  <path d="M0-7 1.7-1.7 7 0 1.7 1.7 0 7-1.7 1.7-7 0-1.7-1.7Z" fill="#ffda44" opacity="0.82"/>
+</g>
+<g filter="url(#gw)" transform="translate(66,8)">
+  <path d="M0-3.5.85-.85 3.5 0 .85.85 0 3.5-.85.85-3.5 0-.85-.85Z" fill="#fff5a0" opacity="0.78"/>
+</g>
+<circle cx="83" cy="-3" r="1.8" fill="#ffbe0b" filter="url(#gw)" opacity="0.82"/>
+<circle cx="75" cy="-6" r="1.2" fill="#fff5a0"                   opacity="0.70"/>
+<circle cx="90" cy="-4" r="1.4" fill="#ffbe0b"                   opacity="0.60"/>
+<circle cx="70" cy="5"  r="1.1" fill="#ffda44"                   opacity="0.56"/>
+<circle cx="86" cy="2"  r="1.0" fill="#fff5a0"                   opacity="0.48"/>
+
+<!-- ═══ WORDMARK (dark-bg version) ═══ -->
+
+<!-- Accent star before "fy" -->
+<g filter="url(#gw)" transform="translate(202,16)">
+  <path d="M0-3.8.92-.92 3.8 0 .92.92 0 3.8-.92.92-3.8 0-.92-.92Z" fill="#ffbe0b" opacity="0.85"/>
+</g>
+
+<!-- "Cumple" in white, "fy" in gold — perfect for dark navbar/footer -->
+<text x="92" y="47"
+  font-family="'SF Pro Display','Nunito','Poppins','Inter',system-ui,sans-serif"
+  font-size="33" font-weight="800" letter-spacing="-0.5">
+  <tspan fill="white">Cumple</tspan><tspan fill="url(#fy)">fy</tspan>
+</text>
+
+<!-- End-star accent -->
+<g filter="url(#gs)" transform="translate(260,18)">
+  <path d="M0-5.5 1.3-1.3 5.5 0 1.3 1.3 0 5.5-1.3 1.3-5.5 0-1.3-1.3Z" fill="#ffee66"/>
+</g>
+<circle cx="266" cy="13" r="1.3" fill="#ffbe0b" opacity="0.70"/>
+<circle cx="265" cy="25" r="1.0" fill="#ff9933" opacity="0.60"/>
+<circle cx="270" cy="22" r="1.1" fill="#ffda44" opacity="0.55"/>
+
 </svg>
