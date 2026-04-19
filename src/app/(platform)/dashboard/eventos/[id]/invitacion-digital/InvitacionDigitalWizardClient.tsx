@@ -48,6 +48,7 @@ interface VideoProject {
   processedImagePath?: string | null;
   regenerationCount: number;
   maxRegenerations: number;
+  latestJob?: { errorMessage?: string | null } | null;
 }
 
 interface Props {
@@ -486,7 +487,9 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
           <>
             <h3 style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: "8px", color: "#EF4444" }}>El Genio encontró un problema</h3>
             <p style={{ color: "var(--neutral-400)", fontSize: "0.9rem", marginBottom: "24px" }}>
-              Hubo un problema al procesar las fotos. Puedes intentarlo de nuevo.
+              {project?.latestJob?.errorMessage?.toLowerCase().includes("sensitive") || project?.latestJob?.errorMessage?.toLowerCase().includes("nsfw")
+                ? "La IA detectó contenido sensible en la foto. Usa una foto con ropa holgada, fondo neutro y postura natural."
+                : "Hubo un problema al procesar las fotos. Puedes intentarlo de nuevo."}
             </p>
             <button
               onClick={handleRegenerate}

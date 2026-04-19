@@ -50,6 +50,7 @@ interface VideoProject {
   regenerationCount: number;
   maxRegenerations: number;
   animationPaid: boolean;
+  latestJob?: { errorMessage?: string | null } | null;
 }
 
 interface Props {
@@ -1086,8 +1087,10 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             <div style={{ textAlign: "center", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
               <span style={{ fontSize: "3rem" }}>😔</span>
               <p style={{ color: "var(--neutral-300)", fontWeight: 600 }}>El Genio necesita otra oportunidad</p>
-              <p style={{ color: "var(--neutral-500)", fontSize: "0.82rem", maxWidth: "280px" }}>
-                Algo no salió bien. Puedes intentarlo de nuevo o volver atrás para cambiar las fotos.
+              <p style={{ color: "var(--neutral-500)", fontSize: "0.82rem", maxWidth: "300px" }}>
+                {project.latestJob?.errorMessage?.toLowerCase().includes("sensitive") || project.latestJob?.errorMessage?.toLowerCase().includes("nsfw")
+                  ? "La IA detectó contenido sensible en la foto. Prueba con una foto diferente: ropa holgada, fondo neutro y postura natural."
+                  : "Algo no salió bien. Puedes intentarlo de nuevo o volver atrás para cambiar las fotos."}
               </p>
               <div style={{ display: "flex", gap: "10px" }}>
                 <button

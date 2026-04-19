@@ -104,35 +104,45 @@ export async function generateProcessedImage(
       kind: "preview",
       visualPrompt: compiled.visualPrompt,
       negativePrompt: compiled.negativePrompt,
-      model: "nano-banana-pro",
+      model: "runninghub-nana-banana-pro",
       inputSnapshot: { image_input: allImageUrls, aspect_ratio: project.aspectRatio },
     })
     .returning();
 
-  // 4. Submit to AI — RunningHub (primary) with NanaBanana Pro (fallback)
+  // 4. Submit to RunningHub (sole engine for image generation — no Kie.ai fallback)
   const nanaBananaPrompt = buildNanaBananaPrompt(project, compiled.visualPrompt);
 
-  let submitted: { taskId: string; modelId: string; provider: "runninghub" | "kie"; requestPayload: Record<string, unknown> };
+  let rh: Awaited<ReturnType<typeof submitRHImageGen>>;
   try {
-    const rh = await submitRHImageGen({
+    rh = await submitRHImageGen({
       imageUrl: allImageUrls[0],
       prompt: nanaBananaPrompt,
-      aspectRatio: project.aspectRatio ?? "auto",
+      aspectRatio: project.aspectRatio ?? "9:16",
       resolution: "1k",
     });
-    submitted = { taskId: rh.taskId, modelId: rh.workflowId, provider: "runninghub", requestPayload: rh.requestPayload };
-    console.log(`[generateProcessedImage] RunningHub submitted — taskId=${submitted.taskId}`);
+    console.log(`[generateProcessedImage] RunningHub submitted — taskId=${rh.taskId}`);
   } catch (rhErr) {
-    console.warn(`[generateProcessedImage] RunningHub failed, falling back to Kie.ai: ${rhErr instanceof Error ? rhErr.message : rhErr}`);
-    const kie = await submitNanaBananaPro({
-      prompt: nanaBananaPrompt,
-      imageInput: allImageUrls,
-      aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-      resolution: "1K",
-      outputFormat: "jpg",
+    const errorMsg = rhErr instanceof Error ? rhErr.message : String(rhErr);
+    console.error(`[generateProcessedImage] RunningHub submission failed: ${errorMsg}`);
+    // Store the failure in DB so it surfaces in the UI error message
+    await db.insert(generationJobs).values({
+      projectId,
+      promptVersionId: promptVersion.id,
+      kind: "image",
+      status: "failed",
+      provider: "runninghub",
+      providerModel: process.env.RUNNINGHUB_WORKFLOW_IMAGE_GEN ?? "unknown",
+      providerTaskId: "submission-failed",
+      errorMessage: errorMsg,
+      requestPayload: { imageUrl: allImageUrls[0], prompt: nanaBananaPrompt },
+      startedAt: new Date(),
+      completedAt: new Date(),
     });
-    submitted = { taskId: kie.taskId, modelId: kie.modelId, provider: "kie", requestPayload: kie.requestPayload };
-    console.log(`[generateProcessedImage] Kie.ai submitted — taskId=${submitted.taskId}`);
+    await db
+      .update(videoProjects)
+      .set({ status: "image_failed", updatedAt: new Date() })
+      .where(eq(videoProjects.id, projectId));
+    throw new Error(`RunningHub: ${errorMsg}`);
   }
 
   // 5. Create generation job record
@@ -143,10 +153,10 @@ export async function generateProcessedImage(
       promptVersionId: promptVersion.id,
       kind: "image",
       status: "queued",
-      provider: submitted.provider,
-      providerModel: submitted.modelId,
-      providerTaskId: submitted.taskId,
-      requestPayload: submitted.requestPayload,
+      provider: "runninghub",
+      providerModel: rh.workflowId,
+      providerTaskId: rh.taskId,
+      requestPayload: rh.requestPayload,
       startedAt: new Date(),
     })
     .returning();
@@ -157,7 +167,7 @@ export async function generateProcessedImage(
     .set({ status: "image_processing", updatedAt: new Date() })
     .where(eq(videoProjects.id, projectId));
 
-  return { jobId: job.id, taskId: submitted.taskId, model: submitted.modelId };
+  return { jobId: job.id, taskId: rh.taskId, model: rh.workflowId };
 }
 
 /**
