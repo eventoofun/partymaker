@@ -111,7 +111,7 @@ function UsuariosScreen() {
       <DataTable columns={cols} rows={rows} onRowClick={setSel}/>
 
       <div style={{marginTop:16,display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,color:T.n400}}>
-        <span>Mostrando 1–{rows.length} de 1,284</span>
+        <span>Mostrando 1–{rows.length} de {USERS.length}</span>
         <div style={{display:'flex',gap:8}}>
           <Button variant="ghost" size="sm">← Anterior</Button>
           <Button variant="ghost" size="sm">Siguiente →</Button>

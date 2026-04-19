@@ -34,10 +34,10 @@ function AuditScreen() {
       <SectionTitle subtitle="Trazabilidad completa de acciones del equipo · últimos 30 días">Audit Log</SectionTitle>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:22}}>
-        <KPI label="Acciones hoy"     value="287"  accent={T.teal}    icon="📋"/>
-        <KPI label="Por tu equipo"    value="42"   accent={T.lilac}   icon="👥" sub="3 miembros activos"/>
-        <KPI label="Deletes 30d"      value="18"   accent={T.coral}   icon="🗑"/>
-        <KPI label="Última acción"    value="28s"  accent={T.emerald} icon="●"  live sub="update event · Pedro Amador"/>
+        <KPI label="Entradas en log"  value={String(AUDIT.length)}   accent={T.teal}    icon="📋" sub="Últimas 20 visibles"/>
+        <KPI label="Creates"          value={String(AUDIT.filter(a=>a.action==='create').length)} accent={T.emerald} icon="✚"/>
+        <KPI label="Deletes"          value={String(AUDIT.filter(a=>a.action==='delete').length)} accent={T.coral}   icon="🗑"/>
+        <KPI label="Última acción"    value={AUDIT.length?AUDIT[0].ts:'—'} accent={T.lilac} icon="●" sub={AUDIT.length?`${AUDIT[0].action} · ${AUDIT[0].entity}`:'sin datos'}/>
       </div>
 
       <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>

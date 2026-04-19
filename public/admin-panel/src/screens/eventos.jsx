@@ -118,7 +118,7 @@ function EventosScreen() {
 
   return (
     <div>
-      <SectionTitle subtitle={`${rows.length} de 2,847 eventos en la plataforma`}
+      <SectionTitle subtitle={`${rows.length} de ${EVENTS.length} eventos en la plataforma`}
         right={<Button variant="teal" icon="↓">Exportar</Button>}>Eventos</SectionTitle>
 
       <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>

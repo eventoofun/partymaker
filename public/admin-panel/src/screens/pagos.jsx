@@ -21,15 +21,20 @@ function PagosScreen() {
   const [tab, setTab] = useState('unlocks');
   const unlocks = TRANSACTIONS.filter(t=>t.type==='unlock');
   const contribs = TRANSACTIONS.filter(t=>t.type==='contrib');
+  const kpis = ADMIN_KPIS;
+  const monthlyEur = ((kpis.monthlyRevenueCents||0) / 100).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const feesEur = ((kpis.monthlyFeesCents||0) / 100).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const now = new Date();
+  const mes = now.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
 
   return (
     <div>
-      <SectionTitle subtitle="Ingresos, fees y transfers · abril 2026">Pagos</SectionTitle>
+      <SectionTitle subtitle={`Ingresos, fees y transfers · ${mes}`}>Pagos</SectionTitle>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:22}}>
-        <KPI label="Ingresos del mes" value="€4,847" accent={T.emerald} icon="€" delta="+22% vs. marzo" sub="Bruto total procesado"/>
-        <KPI label="Fees plataforma"  value="€312"   accent={T.gold}    icon="%"  sub="€189 event unlocks · €123 contributions"/>
-        <KPI label="En tránsito"      value="€1,240" accent={T.lilac}   icon="↻"  sub="Stripe Connect pendiente de payout"/>
+        <KPI label="Ingresos del mes" value={`€${monthlyEur}`} accent={T.emerald} icon="€" delta={`${kpis.monthlyUnlocks||0} unlocks este mes`} sub="Contribuciones + event unlocks"/>
+        <KPI label="Fees plataforma"  value={`€${feesEur}`}    accent={T.gold}    icon="%" sub="3% contribuciones + unlocks plataforma"/>
+        <KPI label="En tránsito"      value="€0,00"            accent={T.lilac}   icon="↻" sub="Stripe Connect · en entorno de pruebas"/>
       </div>
 
       <Tabs tabs={[{k:'unlocks',l:'Event Unlocks'},{k:'contribs',l:'Contributions'},{k:'summary',l:'Resumen financiero'}]} active={tab} setActive={setTab}/>
@@ -70,10 +75,8 @@ function PagosScreen() {
               <span><Dot color={T.gold}/> Contribution fees</span>
             </div>
           </div>
-          <BarChart data={[180,240,290,340,420,380,520,610,580,720,840,910]} height={220} gradId="pg1"/>
-          <div style={{display:'flex',justifyContent:'space-between',marginTop:10,fontSize:11,color:T.n400}}>
-            {['May','Jun','Jul','Ago','Sep','Oct','Nov','Dic','Ene','Feb','Mar','Abr'].map(m=><span key={m}>{m}</span>)}
-          </div>
+          <BarChart data={REVENUE_CHART} height={220} gradId="pg1"/>
+          <div style={{textAlign:'center',marginTop:8,fontSize:11,color:T.n400}}>Últimos 30 días · ingresos reales de la plataforma</div>
         </Card>
       )}
     </div>
