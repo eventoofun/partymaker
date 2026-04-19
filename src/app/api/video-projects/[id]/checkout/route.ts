@@ -85,7 +85,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       },
       success_url: `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones?paid=1&pid=${id}`,
       cancel_url:  `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones`,
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ["card"],
       locale: "es",
     });
   } catch (err) {
