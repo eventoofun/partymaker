@@ -62,32 +62,37 @@ export async function POST(req: Request, { params }: RouteContext) {
   const { product } = parsed.data;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://cumplefy.com";
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: LABELS[product],
-            images: ["https://cumplefy.com/genio/genio.png"],
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: LABELS[product],
+            },
+            unit_amount: PRICES[product],
           },
-          unit_amount: PRICES[product],
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      metadata: {
+        projectId: id,
+        eventId: project.eventId,
+        product,
       },
-    ],
-    metadata: {
-      projectId: id,
-      eventId: project.eventId,
-      product,
-    },
-    success_url: `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones?paid=1&pid=${id}`,
-    cancel_url:  `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones`,
-    payment_method_types: ["card"],
-    locale: "es",
-    expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 min
-  });
+      success_url: `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones?paid=1&pid=${id}`,
+      cancel_url:  `${appUrl}/dashboard/eventos/${project.eventId}/invitaciones`,
+      automatic_payment_methods: { enabled: true },
+      locale: "es",
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Stripe error";
+    console.error("[video-checkout]", msg);
+    return NextResponse.json({ error: `No se pudo iniciar el pago: ${msg}` }, { status: 500 });
+  }
 
   // Guardar el session ID en el proyecto para reconciliación
   await db
