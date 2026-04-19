@@ -100,3 +100,40 @@ export async function getPaymentIntent(id: string): Promise<Stripe.PaymentIntent
     expand: ["latest_charge"],
   });
 }
+
+/** Create a one-time Checkout session to unlock AI features for a single event (€4.99) */
+export async function createEventUnlockSession(params: {
+  userId: string;
+  eventId: string;
+  eventTitle: string;
+  customerId?: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<Stripe.Checkout.Session> {
+  const { userId, eventId, eventTitle, customerId, successUrl, cancelUrl } = params;
+
+  return stripe.checkout.sessions.create({
+    mode: "payment",
+    ...(customerId ? { customer: customerId } : { customer_creation: "always" }),
+    line_items: [
+      {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: `Cumplefy IA · ${eventTitle}`,
+            description: "Videoinvitación IA + Avatar hablante desbloqueados para este evento",
+          },
+          unit_amount: 499,
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      type: "event_unlock",
+      event_id: eventId,
+      user_id: userId,
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  });
+}

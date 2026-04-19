@@ -100,6 +100,7 @@ interface Props {
   event: EventData;
   items: WishItem[];
   latestVideo: VideoData | null;
+  invitacionImageUrl?: string | null;
   itinerary: ItineraryItem[];
   store: StoreData | null;
 }
@@ -2290,7 +2291,7 @@ function AdBanner({ eventType, color }: { eventType: string; color: string }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
-export default function EpicEventClient({ event, items, latestVideo, itinerary, store }: Props) {
+export default function EpicEventClient({ event, items, latestVideo, invitacionImageUrl, itinerary, store }: Props) {
   // Enhanced per-type color: for birthdays, consider age
   const baseColor = event.type === "birthday"
     ? getBirthdayColor(event.celebrantAge)
@@ -2656,6 +2657,20 @@ export default function EpicEventClient({ event, items, latestVideo, itinerary, 
 
       {/* ══ CONTENT ══════════════════════════════════════════════════════════ */}
       <div style={{ maxWidth: "760px", margin: "0 auto" }} className="event-sections">
+
+        {/* INVITACIÓN MÁGICA (static image, no video yet) */}
+        {invitacionImageUrl && (
+          <Section id="invitacion">
+            <SectionHeader icon={<ImageIcon size={17} />} title="Invitación" color={color} />
+            <div style={{ ...cardStyle, padding: 0, overflow: "hidden", border: `1px solid ${color}25` }}>
+              <img
+                src={invitacionImageUrl}
+                alt={`Invitación de ${event.celebrantName}`}
+                style={{ width: "100%", display: "block", borderRadius: "16px" }}
+              />
+            </div>
+          </Section>
+        )}
 
         {/* VIDEO INVITATION */}
         {latestVideo && (

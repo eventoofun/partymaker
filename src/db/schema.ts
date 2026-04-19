@@ -177,6 +177,7 @@ export const events = pgTable("events", {
   allowRsvp:    boolean("allow_rsvp").default(true).notNull(),
   allowGifts:   boolean("allow_gifts").default(true).notNull(),
   rsvpDeadline: timestamp("rsvp_deadline"),
+  rsvpMessage:  text("rsvp_message"),
   rsvpSettings: jsonb("rsvp_settings").$type<{
     allowPlusOne?: boolean;
     allowChildren?: boolean;

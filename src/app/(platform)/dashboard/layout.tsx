@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { Plus, LayoutDashboard, CalendarDays } from "lucide-react";
+import { Plus } from "lucide-react";
 import SidebarNav from "./SidebarNav";
 import DashboardGenio from "./DashboardGenio";
 
@@ -106,18 +106,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="dashboard-main">
         {children}
       </main>
-
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="dashboard-mobile-nav">
-        <Link href="/dashboard">
-          <LayoutDashboard size={20} />
-          Inicio
-        </Link>
-        <Link href="/dashboard/eventos">
-          <CalendarDays size={20} />
-          Eventos
-        </Link>
-      </nav>
 
       {/* ── GENIO CHATBOT ── */}
       <DashboardGenio />

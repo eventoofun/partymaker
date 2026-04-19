@@ -46,6 +46,7 @@ export default async function InvitacionDigitalPage({ params }: Props) {
           eventDate: event.eventDate ?? null,
           venue: event.venue ?? null,
           venueAddress: event.venueAddress ?? null,
+          slug: event.slug,
         }}
       />
     </div>

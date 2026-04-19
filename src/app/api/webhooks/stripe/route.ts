@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { contributions, giftItems, videoProjects } from "@/db/schema";
+import { contributions, events, giftItems, videoProjects } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 
@@ -75,16 +75,32 @@ export async function POST(req: Request) {
       .where(eq(contributions.stripePaymentIntentId, pi.id));
   }
 
-  // ── Upsell animación del Genio ───────────────────────────────────────────
+  // ── Checkout completed ───────────────────────────────────────────────────
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const { projectId } = session.metadata ?? {};
+    const { projectId, type, event_id: eventId } = session.metadata ?? {};
 
+    // Video project animation upsell
     if (projectId && session.payment_status === "paid") {
       await db
         .update(videoProjects)
         .set({ animationPaid: true, updatedAt: new Date() })
         .where(eq(videoProjects.id, projectId));
+    }
+
+    // Event AI features unlock
+    if (type === "event_unlock" && eventId && session.payment_status === "paid") {
+      await db
+        .update(events)
+        .set({
+          paymentStatus: "paid",
+          paidAt: new Date(),
+          stripePaymentIntentId: typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(events.id, eventId));
     }
   }
 

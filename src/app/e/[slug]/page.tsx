@@ -86,11 +86,11 @@ export default async function PublicEventPage({ params }: Props) {
   const latestVideo = event.videoInvitations?.[0] ?? null;
   const itinerary = event.itinerary ?? [];
 
-  // Load the latest published IA video project (new system)
+  // Load the latest IA video project — published (has video) or image_ready (has static image)
   const [latestVideoProject] = await db
-    .select({ finalVideoUrl: videoProjects.finalVideoUrl, thumbnailUrl: videoProjects.thumbnailUrl, aspectRatio: videoProjects.aspectRatio })
+    .select({ finalVideoUrl: videoProjects.finalVideoUrl, thumbnailUrl: videoProjects.thumbnailUrl, aspectRatio: videoProjects.aspectRatio, processedImageUrl: videoProjects.processedImageUrl })
     .from(videoProjects)
-    .where(and(eq(videoProjects.eventId, event.id), eq(videoProjects.status, "published")))
+    .where(eq(videoProjects.eventId, event.id))
     .orderBy(desc(videoProjects.createdAt))
     .limit(1);
 
@@ -221,11 +221,17 @@ export default async function PublicEventPage({ params }: Props) {
     })),
   } : null;
 
+  // Static invitation image (wizard generated, no video yet)
+  const invitacionImageUrl = !latestVideoProject?.finalVideoUrl
+    ? (latestVideoProject?.processedImageUrl ?? null)
+    : null;
+
   return (
     <EpicEventClient
       event={eventData}
       items={itemsData}
       latestVideo={videoData}
+      invitacionImageUrl={invitacionImageUrl}
       itinerary={itineraryData}
       store={storeData}
     />

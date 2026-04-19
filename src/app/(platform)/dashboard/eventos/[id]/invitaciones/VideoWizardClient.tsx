@@ -16,8 +16,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check, Play, ArrowLeft, ArrowRight,
-  Loader2, Image as ImageIcon, Mic, Video, Share2, AlertCircle, Wand2, Sparkles, RefreshCw, X,
+  Loader2, Image as ImageIcon, Mic, Video, Share2, AlertCircle, Wand2, Sparkles, RefreshCw, X, Gift,
 } from "lucide-react";
+import WizardStepGifts from "@/components/wizard/WizardStepGifts";
+import WizardStepRsvp from "@/components/wizard/WizardStepRsvp";
+import WizardStepComplete from "@/components/wizard/WizardStepComplete";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,7 @@ interface EventInfo {
   type: string;
   eventDate?: string | null;
   venue?: string | null;
+  slug: string;
 }
 
 interface VideoProject {
@@ -62,6 +66,9 @@ const STEPS = [
   { label: "Imagen",  icon: Wand2     },
   { label: "Preview", icon: Play      },
   { label: "Final",   icon: Video     },
+  { label: "Regalos", icon: Gift      },
+  { label: "RSVP",    icon: Check     },
+  { label: "¡Listo!", icon: Share2    },
 ];
 
 function StepIndicator({ current }: { current: number }) {
@@ -573,14 +580,12 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   // Controla si el upsell está "omitido" (usuario hizo clic en "No gracias")
   const [upsellDismissed, setUpsellDismissed] = useState(false);
 
-  // Paso 0: fotos y audio
+  // Paso 0: foto frontal y audio
   const [mode, setMode] = useState<"visual" | "lipsync">("visual");
-  const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null, null]);
-  const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null, null, null]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
-  // storagePaths de las fotos subidas (para pasar al orchestrator)
-  const [photoStoragePaths, setPhotoStoragePaths] = useState<string[]>([]);
 
   // Paso 1
   const [protagonistName, setProtagonistName] = useState(existingProject?.protagonistName || event.celebrantName);
@@ -677,12 +682,11 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
     return storagePath;
   }
 
-  // ── Paso 0: Subir fotos ──
+  // ── Paso 0: Subir foto ──
 
   async function handleStep0Submit() {
-    const filledFiles = imageFiles.filter(Boolean) as File[];
-    if (filledFiles.length === 0) {
-      toast.error("🧞 El Genio necesita al menos una foto del protagonista para trabajar");
+    if (!imageFile) {
+      toast.error("🧞 El Genio necesita la foto frontal del protagonista");
       return;
     }
     if (mode === "lipsync" && !audioFile) {
@@ -714,20 +718,15 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
         setProject(proj);
       }
 
-      const paths: string[] = [];
-      for (let i = 0; i < filledFiles.length; i++) {
-        toast.loading(`✨ Subiendo foto ${i + 1} de ${filledFiles.length}…`, { id: "step0" });
-        const path = await uploadAsset(proj!.id, "protagonist_image", filledFiles[i]);
-        paths.push(path);
-      }
-      setPhotoStoragePaths(paths);
+      toast.loading("✨ Subiendo foto…", { id: "step0" });
+      await uploadAsset(proj!.id, "protagonist_image", imageFile);
 
       if (mode === "lipsync" && audioFile) {
         toast.loading("🎵 Subiendo audio…", { id: "step0" });
         await uploadAsset(proj!.id, "audio", audioFile);
       }
 
-      toast.success("✨ ¡Fotos listas! Ahora cuéntale al Genio cómo quieres la escena.", { id: "step0" });
+      toast.success("✨ ¡Foto lista! Ahora cuéntale al Genio cómo quieres la escena.", { id: "step0" });
       setStep(1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error inesperado";
@@ -770,7 +769,7 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
       const genRes = await fetch(`/api/video-projects/${project.id}/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ additionalImagePaths: photoStoragePaths }),
+        body: JSON.stringify({}),
       });
       if (!genRes.ok) {
         const e = await genRes.json().catch(() => ({}));
@@ -884,13 +883,12 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   const regenLeft = project ? project.maxRegenerations - project.regenerationCount : 0;
-  const filledPhotos = imageFiles.filter(Boolean).length;
 
   return (
     <div style={{ maxWidth: "560px" }}>
       <StepIndicator current={step} />
 
-      {/* ── PASO 0: Subir fotos ─────────────────────────────────────────────── */}
+      {/* ── PASO 0: Subir foto frontal ──────────────────────────────────────── */}
       {step === 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
@@ -916,49 +914,30 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
 
           {/* Tip del Genio */}
           <GenieTip>
-            <strong>¡El secreto de los mejores resultados!</strong> Sube 3 fotos del protagonista desde distintos ángulos (frente, perfil y otra perspectiva). Cuantas más fotos le des al Genio, más fiel y espectacular será la transformación mágica. 🪄
+            <strong>Para que la magia funcione perfectamente</strong>, sube una foto frontal del protagonista donde se vea bien la cara — bien iluminada, mirando a cámara. Cuanto más clara sea la foto, más realista será el resultado. 🪄
           </GenieTip>
 
-          {/* 3 slots de foto */}
+          {/* 1 slot de foto frontal */}
           <div>
             <label style={{ fontSize: "0.85rem", color: "var(--neutral-300)", display: "block", marginBottom: "10px" }}>
-              Fotos del protagonista <span style={{ color: "#ef4444" }}>*</span>
+              Foto del protagonista <span style={{ color: "#ef4444" }}>*</span>
               <span style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginLeft: "8px" }}>
-                ({filledPhotos}/3 · mínimo 1, recomienda 3)
+                Frontal, cara visible, buena luz
               </span>
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-              {[0, 1, 2].map((i) => (
-                <PhotoSlot
-                  key={i}
-                  index={i}
-                  file={imageFiles[i]}
-                  preview={imagePreviews[i]}
-                  required={i === 0}
-                  onFile={(f) => {
-                    const newFiles = [...imageFiles];
-                    const newPreviews = [...imagePreviews];
-                    newFiles[i] = f;
-                    newPreviews[i] = URL.createObjectURL(f);
-                    setImageFiles(newFiles);
-                    setImagePreviews(newPreviews);
-                  }}
-                  onRemove={() => {
-                    const newFiles = [...imageFiles];
-                    const newPreviews = [...imagePreviews];
-                    newFiles[i] = null;
-                    newPreviews[i] = null;
-                    setImageFiles(newFiles);
-                    setImagePreviews(newPreviews);
-                  }}
-                />
-              ))}
+            <div style={{ maxWidth: "180px", margin: "0 auto" }}>
+              <PhotoSlot
+                index={0}
+                file={imageFile}
+                preview={imagePreview}
+                required
+                onFile={(f) => { setImageFile(f); setImagePreview(URL.createObjectURL(f)); }}
+                onRemove={() => { setImageFile(null); setImagePreview(null); }}
+              />
             </div>
-            {filledPhotos === 1 && (
-              <p style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginTop: "8px", textAlign: "center" }}>
-                💡 Con 2 o 3 fotos el Genio consigue resultados mucho más precisos
-              </p>
-            )}
+            <p style={{ fontSize: "0.74rem", color: "var(--neutral-600)", marginTop: "10px", textAlign: "center" }}>
+              ✅ Frontal · 😊 Cara centrada · 💡 Buena iluminación
+            </p>
           </div>
 
           {/* Audio (solo lipsync) */}
@@ -973,12 +952,12 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
 
           <button
             onClick={handleStep0Submit}
-            disabled={loading || filledPhotos === 0}
+            disabled={loading || !imageFile}
             style={{
               padding: "14px 24px", borderRadius: "10px", border: "none",
               background: "var(--brand-primary)", color: "#fff",
-              fontWeight: 600, cursor: loading || filledPhotos === 0 ? "not-allowed" : "pointer",
-              opacity: loading || filledPhotos === 0 ? 0.6 : 1,
+              fontWeight: 600, cursor: loading || !imageFile ? "not-allowed" : "pointer",
+              opacity: loading || !imageFile ? 0.6 : 1,
               display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
             }}
           >
@@ -1287,6 +1266,18 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
               >
                 <Share2 size={16} /> Descargar vídeo
               </a>
+              <button
+                onClick={() => setStep(5)}
+                style={{
+                  width: "100%", padding: "11px 16px",
+                  borderRadius: "10px", border: "1px solid rgba(139,92,246,0.3)",
+                  background: "rgba(139,92,246,0.06)", color: "var(--neutral-300)",
+                  fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                }}
+              >
+                🎁 Continuar con regalos y RSVP →
+              </button>
             </>
           ) : project?.status === "final_failed" ? (
             <div style={{ textAlign: "center", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
@@ -1304,6 +1295,34 @@ export default function VideoWizardClient({ eventId, event, existingProject }: P
             </div>
           ) : null}
         </div>
+      )}
+
+      {/* ── PASO 5: Regalos ────────────────────────────────────────────────── */}
+      {step === 5 && (
+        <WizardStepGifts
+          eventId={eventId}
+          celebrantName={event.celebrantName}
+          onNext={() => setStep(6)}
+          onSkip={() => setStep(6)}
+        />
+      )}
+
+      {/* ── PASO 6: RSVP ───────────────────────────────────────────────────── */}
+      {step === 6 && (
+        <WizardStepRsvp
+          eventId={eventId}
+          onNext={() => setStep(7)}
+          onSkip={() => setStep(7)}
+        />
+      )}
+
+      {/* ── PASO 7: Listo ──────────────────────────────────────────────────── */}
+      {step === 7 && (
+        <WizardStepComplete
+          eventId={eventId}
+          eventSlug={event.slug}
+          celebrantName={event.celebrantName}
+        />
       )}
 
       <style>{`

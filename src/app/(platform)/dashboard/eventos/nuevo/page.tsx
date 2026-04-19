@@ -143,7 +143,7 @@ export default function NuevoEventoPage() {
       const wizardSection = WIZARD_ROUTES[wizardParam];
       const dest = wizardSection
         ? `/dashboard/eventos/${eventId}/${wizardSection}`
-        : `/dashboard/eventos/${eventId}`;
+        : `/dashboard/eventos/${eventId}?nuevo=1`;
       router.push(dest);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Error al crear el evento");

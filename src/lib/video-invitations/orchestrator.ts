@@ -27,9 +27,16 @@ import {
   submitLipsync,
   getTaskStatus,
 } from "@/lib/kie";
+import {
+  submitRHImageGen,
+  submitRHLipsync,
+  submitRHVideoGen,
+  getRHTaskStatus,
+} from "@/lib/runninghub";
 import { compilePrompt } from "./prompt-engine";
 import { assertTransition, type VideoProjectStatus } from "./state-machine";
 import { storeVideoFromUrl, storeImageFromUrl, getSignedAssetUrl } from "./storage";
+import { swapFaceOnScene } from "@/lib/falai";
 
 // ─── Step 1: Generate Processed Image (NanaBanana Pro) ───────────────────────
 
@@ -102,16 +109,31 @@ export async function generateProcessedImage(
     })
     .returning();
 
-  // 4. Submit to NanaBanana Pro
+  // 4. Submit to AI — RunningHub (primary) with NanaBanana Pro (fallback)
   const nanaBananaPrompt = buildNanaBananaPrompt(project, compiled.visualPrompt);
 
-  const submitted = await submitNanaBananaPro({
-    prompt: nanaBananaPrompt,
-    imageInput: allImageUrls,
-    aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-    resolution: "1K",
-    outputFormat: "jpg",
-  });
+  let submitted: { taskId: string; modelId: string; provider: "runninghub" | "kie"; requestPayload: Record<string, unknown> };
+  try {
+    const rh = await submitRHImageGen({
+      imageUrl: allImageUrls[0],
+      prompt: nanaBananaPrompt,
+      aspectRatio: project.aspectRatio ?? "auto",
+      resolution: "1k",
+    });
+    submitted = { taskId: rh.taskId, modelId: rh.workflowId, provider: "runninghub", requestPayload: rh.requestPayload };
+    console.log(`[generateProcessedImage] RunningHub submitted — taskId=${submitted.taskId}`);
+  } catch (rhErr) {
+    console.warn(`[generateProcessedImage] RunningHub failed, falling back to Kie.ai: ${rhErr instanceof Error ? rhErr.message : rhErr}`);
+    const kie = await submitNanaBananaPro({
+      prompt: nanaBananaPrompt,
+      imageInput: allImageUrls,
+      aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+      resolution: "1K",
+      outputFormat: "jpg",
+    });
+    submitted = { taskId: kie.taskId, modelId: kie.modelId, provider: "kie", requestPayload: kie.requestPayload };
+    console.log(`[generateProcessedImage] Kie.ai submitted — taskId=${submitted.taskId}`);
+  }
 
   // 5. Create generation job record
   const [job] = await db
@@ -121,7 +143,7 @@ export async function generateProcessedImage(
       promptVersionId: promptVersion.id,
       kind: "image",
       status: "queued",
-      provider: "kie",
+      provider: submitted.provider,
       providerModel: submitted.modelId,
       providerTaskId: submitted.taskId,
       requestPayload: submitted.requestPayload,
@@ -255,41 +277,64 @@ export async function generatePreview(
     })
     .returning();
 
-  // Submit to Kie.ai (lipsync vs visual) — if this throws, reset status to image_ready
-  let submitted: { taskId: string; modelId: string; requestPayload: Record<string, unknown> };
+  // Submit to AI — RunningHub (primary) with Kie.ai (fallback)
+  let submitted: { taskId: string; modelId: string; provider: "runninghub" | "kie"; requestPayload: Record<string, unknown> };
   try {
     if (project.mode === "lipsync" && project.audioPath) {
       console.log(
-        `[generatePreview] Submitting InfiniteTalk for ${projectId} — audioPath=${project.audioPath} imageUrl=${firstFrameUrl.substring(0, 60)}...`,
+        `[generatePreview] Submitting lipsync for ${projectId} — audioPath=${project.audioPath} imageUrl=${firstFrameUrl.substring(0, 60)}...`,
       );
       const audioUrl = await getSignedAssetUrl(project.audioPath, 3600);
-      console.log(`[generatePreview] Audio URL signed OK — submitting to Kie.ai`);
-      submitted = await submitLipsync({
-        imageUrl: firstFrameUrl,
-        audioUrl,
-        prompt: compiled.visualPrompt,
-        resolution: "480p",
-      });
-      console.log(`[generatePreview] InfiniteTalk submitted — taskId=${submitted.taskId}`);
+      try {
+        const rh = await submitRHLipsync({
+          imageUrl: firstFrameUrl,
+          audioUrl,
+          prompt: compiled.visualPrompt,
+        });
+        submitted = { taskId: rh.taskId, modelId: rh.workflowId, provider: "runninghub", requestPayload: rh.requestPayload };
+        console.log(`[generatePreview] RunningHub lipsync submitted — taskId=${submitted.taskId}`);
+      } catch (rhErr) {
+        console.warn(`[generatePreview] RunningHub lipsync failed, falling back to Kie.ai: ${rhErr instanceof Error ? rhErr.message : rhErr}`);
+        const kie = await submitLipsync({
+          imageUrl: firstFrameUrl,
+          audioUrl,
+          prompt: compiled.visualPrompt,
+          resolution: "480p",
+        });
+        submitted = { taskId: kie.taskId, modelId: kie.modelId, provider: "kie", requestPayload: kie.requestPayload };
+        console.log(`[generatePreview] Kie.ai lipsync submitted — taskId=${submitted.taskId}`);
+      }
     } else {
       console.log(
-        `[generatePreview] Submitting Seedance for ${projectId} — mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
+        `[generatePreview] Submitting video for ${projectId} — mode=${project.mode} audioPath=${project.audioPath ?? "NULL"}`,
       );
-      submitted = await submitSeedancePreview({
-        prompt: compiled.visualPrompt,
-        firstFrameUrl,
-        aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-        resolution: "480p",
-        durationSeconds: project.durationSeconds,
-        generateAudio: true,
-      });
-      console.log(`[generatePreview] Seedance submitted — taskId=${submitted.taskId}`);
+      try {
+        const rh = await submitRHVideoGen({
+          imageUrl: firstFrameUrl,
+          prompt: compiled.visualPrompt,
+          duration: String(project.durationSeconds ?? 8),
+          resolution: "480p",
+        });
+        submitted = { taskId: rh.taskId, modelId: rh.workflowId, provider: "runninghub", requestPayload: rh.requestPayload };
+        console.log(`[generatePreview] RunningHub video submitted — taskId=${submitted.taskId}`);
+      } catch (rhErr) {
+        console.warn(`[generatePreview] RunningHub video failed, falling back to Kie.ai: ${rhErr instanceof Error ? rhErr.message : rhErr}`);
+        const kie = await submitSeedancePreview({
+          prompt: compiled.visualPrompt,
+          firstFrameUrl,
+          aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+          resolution: "480p",
+          durationSeconds: project.durationSeconds,
+          generateAudio: true,
+        });
+        submitted = { taskId: kie.taskId, modelId: kie.modelId, provider: "kie", requestPayload: kie.requestPayload };
+        console.log(`[generatePreview] Kie.ai Seedance submitted — taskId=${submitted.taskId}`);
+      }
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[generatePreview] Kie.ai submission failed for ${projectId}: ${errMsg}`);
-    // Roll back: lipsync never went through NanaBanana so roll back to assets_uploaded;
-    // visual mode roll back to image_ready (processed image still valid).
+    console.error(`[generatePreview] All providers failed for ${projectId}: ${errMsg}`);
+    // Roll back: lipsync → assets_uploaded; visual mode → image_ready (processed image still valid).
     const rollbackStatus = project.mode === "lipsync" ? "assets_uploaded" : "image_ready";
     await db
       .update(videoProjects)
@@ -306,7 +351,7 @@ export async function generatePreview(
       promptVersionId: promptVersion.id,
       kind: "preview",
       status: "queued",
-      provider: "kie",
+      provider: submitted.provider,
       providerModel: submitted.modelId,
       providerTaskId: submitted.taskId,
       requestPayload: submitted.requestPayload,
@@ -398,6 +443,47 @@ async function handleImageJobSuccess(
     sizeBytes: stored.sizeBytes,
   });
 
+  // ── fal.ai face-swap: insert protagonist's real face into the NanaBanana scene ─
+  // Two-step pipeline: NanaBanana generates the themed scene, face-swap inserts
+  // the real child's face into that scene. This preserves the stylised party
+  // aesthetic while guaranteeing face identity.
+  //
+  //   base_image_url = NanaBanana scene  (face goes INTO here)
+  //   swap_image_url = protagonist photo  (face taken FROM here)
+  let finalImageUrl    = stored.publicUrl;
+  let finalStoragePath = stored.storagePath;
+
+  if (process.env.FAL_KEY) {
+    try {
+      const project = await getProjectOrThrow(job.projectId);
+      const faceUrl  = await getSignedAssetUrl(project.protagonistImagePath!, 3600);
+
+      console.log(`[faceswap] Inserting protagonist face for project ${job.projectId}`);
+      const swappedUrl = await swapFaceOnScene({
+        sceneImageUrl: stored.publicUrl,  // NanaBanana styled scene
+        faceImageUrl:  faceUrl,           // protagonist's real photo
+      });
+
+      const swappedStored = await storeImageFromUrl({
+        projectId: job.projectId,
+        jobId:     job.id,
+        sourceUrl: swappedUrl,
+      });
+
+      finalImageUrl    = swappedStored.publicUrl;
+      finalStoragePath = swappedStored.storagePath;
+      console.log(`[faceswap] Completed for project ${job.projectId}`);
+    } catch (err) {
+      console.warn(
+        `[faceswap] Failed for project ${job.projectId}, using NanaBanana scene as fallback: ` +
+        (err instanceof Error ? err.message : err),
+      );
+      // Graceful degradation — the NanaBanana scene is still a good result
+    }
+  } else {
+    console.warn("[faceswap] Skipped — FAL_KEY not configured");
+  }
+
   // Update job to ready
   await db
     .update(generationJobs)
@@ -415,8 +501,8 @@ async function handleImageJobSuccess(
     .update(videoProjects)
     .set({
       status: "image_ready",
-      processedImagePath: stored.storagePath,
-      processedImageUrl: stored.publicUrl,
+      processedImagePath: finalStoragePath,
+      processedImageUrl:  finalImageUrl,
       updatedAt: new Date(),
     })
     .where(eq(videoProjects.id, job.projectId));
@@ -560,16 +646,31 @@ export async function approveFinal(
     aspectRatio: project.aspectRatio,
   });
 
-  // Submit to KIE.ai FIRST — if this throws, project stays at awaiting_approval
-  // Default 480p (cost-efficient). Users can upsell to 720p/1080p at checkout.
-  const submitted = await submitSeedancePreview({
-    prompt: compiled.visualPrompt,
-    firstFrameUrl: imageUrl,
-    aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
-    resolution: resolution === "1080p" ? "720p" : resolution, // Seedance max = 720p; 1080p handled by Wan2.7
-    durationSeconds: project.durationSeconds,
-    generateAudio: true,
-  });
+  // Submit to AI FIRST — if this throws, project stays at awaiting_approval
+  // RunningHub (primary) with Kie.ai (fallback). Default 480p — users can upsell.
+  let submitted: { taskId: string; modelId: string; provider: "runninghub" | "kie"; requestPayload: Record<string, unknown> };
+  try {
+    const rh = await submitRHVideoGen({
+      imageUrl,
+      prompt: compiled.visualPrompt,
+      duration: String(project.durationSeconds ?? 8),
+      resolution: resolution === "1080p" ? "720p" : resolution,
+    });
+    submitted = { taskId: rh.taskId, modelId: rh.workflowId, provider: "runninghub", requestPayload: rh.requestPayload };
+    console.log(`[approveFinal] RunningHub submitted — taskId=${submitted.taskId}`);
+  } catch (rhErr) {
+    console.warn(`[approveFinal] RunningHub failed, falling back to Kie.ai: ${rhErr instanceof Error ? rhErr.message : rhErr}`);
+    const kie = await submitSeedancePreview({
+      prompt: compiled.visualPrompt,
+      firstFrameUrl: imageUrl,
+      aspectRatio: project.aspectRatio as "9:16" | "16:9" | "1:1",
+      resolution: resolution === "1080p" ? "720p" : resolution,
+      durationSeconds: project.durationSeconds,
+      generateAudio: true,
+    });
+    submitted = { taskId: kie.taskId, modelId: kie.modelId, provider: "kie", requestPayload: kie.requestPayload };
+    console.log(`[approveFinal] Kie.ai submitted — taskId=${submitted.taskId}`);
+  }
 
   // Save final prompt version
   const [finalPromptVersion] = await db
@@ -592,7 +693,7 @@ export async function approveFinal(
       promptVersionId: finalPromptVersion.id,
       kind: "final",
       status: "queued",
-      provider: "kie",
+      provider: submitted.provider,
       providerModel: submitted.modelId,
       providerTaskId: submitted.taskId,
       requestPayload: submitted.requestPayload,
@@ -713,15 +814,25 @@ export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> 
 
   if (!job || !job.providerTaskId) return false;
 
-  let kieStatus: { status: string; resultUrl?: string; errorMessage?: string; raw?: Record<string, unknown> };
+  let pollStatus: { status: string; resultUrl?: string; errorMessage?: string; raw?: Record<string, unknown> };
   try {
-    kieStatus = await getTaskStatus(job.providerTaskId);
+    if (job.provider === "runninghub") {
+      const rh = await getRHTaskStatus(job.providerTaskId);
+      pollStatus = {
+        status: rh.status,
+        resultUrl: rh.resultUrl,
+        errorMessage: rh.errorMessage,
+        raw: rh.raw,
+      };
+    } else {
+      pollStatus = await getTaskStatus(job.providerTaskId);
+    }
   } catch {
-    return false; // Kie.ai unreachable — try again next poll
+    return false; // Provider unreachable — try again next poll
   }
 
-  // Not finished yet — kieStatus.status is already normalized by getTaskStatus
-  if (["waiting", "queuing", "generating"].includes(kieStatus.status)) return false;
+  // Not finished yet
+  if (["waiting", "queuing", "generating", "running", "queued"].includes(pollStatus.status)) return false;
 
   // Atomically claim the job to prevent double-processing
   const [claimed] = await db
@@ -740,10 +851,10 @@ export async function pollAndSyncJobStatus(projectId: string): Promise<boolean> 
   // Delegate to the same handler the webhook uses
   await handleKieCallback({
     taskId: job.providerTaskId,
-    status: kieStatus.status === "success" ? "success" : "fail",
-    resultUrl: kieStatus.resultUrl,
-    errorMessage: kieStatus.errorMessage,
-    raw: (kieStatus.raw ?? {}) as Record<string, unknown>,
+    status: pollStatus.status === "success" ? "success" : "fail",
+    resultUrl: pollStatus.resultUrl,
+    errorMessage: pollStatus.errorMessage,
+    raw: (pollStatus.raw ?? {}) as Record<string, unknown>,
   });
 
   return true;

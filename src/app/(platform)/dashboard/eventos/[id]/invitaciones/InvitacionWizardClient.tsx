@@ -17,8 +17,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check, ArrowLeft, ArrowRight,
-  Loader2, Image as ImageIcon, Video, Share2, Sparkles, RefreshCw, X, Wand2, Download,
+  Loader2, Image as ImageIcon, Video, Share2, Sparkles, RefreshCw, X, Wand2, Download, Gift,
 } from "lucide-react";
+import WizardStepGifts from "@/components/wizard/WizardStepGifts";
+import WizardStepRsvp from "@/components/wizard/WizardStepRsvp";
+import WizardStepComplete from "@/components/wizard/WizardStepComplete";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,7 @@ interface EventInfo {
   type: string;
   eventDate?: string | null;
   venue?: string | null;
+  slug: string;
 }
 
 interface VideoProject {
@@ -58,9 +62,12 @@ interface Props {
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
 const STEPS = [
-  { label: "Fotos",  icon: ImageIcon },
-  { label: "Escena", icon: Sparkles  },
-  { label: "Imagen", icon: Wand2     },
+  { label: "Fotos",   icon: ImageIcon },
+  { label: "Escena",  icon: Sparkles  },
+  { label: "Imagen",  icon: Wand2     },
+  { label: "Regalos", icon: Gift      },
+  { label: "RSVP",    icon: Check     },
+  { label: "¡Listo!", icon: Share2    },
 ];
 
 function StepIndicator({ current }: { current: number }) {
@@ -567,10 +574,9 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
   const [loading, setLoading] = useState(false);
   const [showImageStatic, setShowImageStatic] = useState(false);
 
-  // Paso 0: fotos
-  const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null, null]);
-  const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null, null, null]);
-  const [photoStoragePaths, setPhotoStoragePaths] = useState<string[]>([]);
+  // Paso 0: foto frontal
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Paso 1: descripción
   const [protagonistName, setProtagonistName] = useState(existingProject?.protagonistName || event.celebrantName);
@@ -646,11 +652,10 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
     return storagePath;
   }
 
-  // ── Paso 0 → subir fotos ──
+  // ── Paso 0 → subir foto ──
   async function handleStep0Submit() {
-    const filledFiles = imageFiles.filter(Boolean) as File[];
-    if (filledFiles.length === 0) {
-      toast.error("🧞 El Genio necesita al menos una foto del protagonista");
+    if (!imageFile) {
+      toast.error("🧞 El Genio necesita la foto del protagonista");
       return;
     }
     setLoading(true);
@@ -671,15 +676,10 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
         setProject(proj);
       }
 
-      const paths: string[] = [];
-      for (let i = 0; i < filledFiles.length; i++) {
-        toast.loading(`✨ Subiendo foto ${i + 1} de ${filledFiles.length}…`, { id: "step0" });
-        const path = await uploadAsset(proj!.id, "protagonist_image", filledFiles[i]);
-        paths.push(path);
-      }
-      setPhotoStoragePaths(paths);
+      toast.loading("✨ Subiendo foto…", { id: "step0" });
+      await uploadAsset(proj!.id, "protagonist_image", imageFile);
 
-      toast.success("✨ ¡Fotos listas! Ahora cuéntale al Genio cómo quieres la escena.", { id: "step0" });
+      toast.success("✨ ¡Foto lista! Ahora cuéntale al Genio cómo quieres la escena.", { id: "step0" });
       setStep(1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error inesperado", { id: "step0", duration: 6000 });
@@ -710,7 +710,7 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
       const genRes = await fetch(`/api/video-projects/${project.id}/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ additionalImagePaths: photoStoragePaths }),
+        body: JSON.stringify({}),
       });
       if (!genRes.ok) {
         const e = await genRes.json().catch(() => ({}));
@@ -754,7 +754,6 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   const regenLeft = project ? project.maxRegenerations - project.regenerationCount : 3;
-  const filledPhotos = imageFiles.filter(Boolean).length;
 
   return (
     <div style={{ maxWidth: "520px" }}>
@@ -764,58 +763,39 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
       {step === 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <GenieTip>
-            <strong>¡El secreto de los mejores resultados!</strong> Sube 3 fotos del protagonista desde distintos ángulos — frente, perfil y otra perspectiva. Cuantas más fotos le des al Genio, más fiel y espectacular será la imagen mágica. 🪄
+            <strong>Para que la magia funcione perfectamente</strong>, sube una foto frontal del protagonista donde se vea bien la cara — bien iluminada, mirando a cámara. Cuanto más clara sea la foto, más realista será la invitación. 🪄
           </GenieTip>
 
           <div>
             <label style={{ fontSize: "0.85rem", color: "var(--neutral-300)", display: "block", marginBottom: "10px" }}>
-              Fotos del protagonista <span style={{ color: "#ef4444" }}>*</span>
+              Foto del protagonista <span style={{ color: "#ef4444" }}>*</span>
               <span style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginLeft: "8px" }}>
-                ({filledPhotos}/3 · mínimo 1, recomienda 3)
+                Frontal, cara visible, buena luz
               </span>
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-              {[0, 1, 2].map((i) => (
-                <PhotoSlot
-                  key={i}
-                  index={i}
-                  file={imageFiles[i]}
-                  preview={imagePreviews[i]}
-                  required={i === 0}
-                  onFile={(f) => {
-                    const newFiles = [...imageFiles];
-                    const newPreviews = [...imagePreviews];
-                    newFiles[i] = f;
-                    newPreviews[i] = URL.createObjectURL(f);
-                    setImageFiles(newFiles);
-                    setImagePreviews(newPreviews);
-                  }}
-                  onRemove={() => {
-                    const newFiles = [...imageFiles];
-                    const newPreviews = [...imagePreviews];
-                    newFiles[i] = null;
-                    newPreviews[i] = null;
-                    setImageFiles(newFiles);
-                    setImagePreviews(newPreviews);
-                  }}
-                />
-              ))}
+            <div style={{ maxWidth: "180px", margin: "0 auto" }}>
+              <PhotoSlot
+                index={0}
+                file={imageFile}
+                preview={imagePreview}
+                required
+                onFile={(f) => { setImageFile(f); setImagePreview(URL.createObjectURL(f)); }}
+                onRemove={() => { setImageFile(null); setImagePreview(null); }}
+              />
             </div>
-            {filledPhotos === 1 && (
-              <p style={{ fontSize: "0.75rem", color: "var(--neutral-500)", marginTop: "8px", textAlign: "center" }}>
-                💡 Con 2 o 3 fotos el Genio consigue resultados mucho más precisos
-              </p>
-            )}
+            <p style={{ fontSize: "0.74rem", color: "var(--neutral-600)", marginTop: "10px", textAlign: "center" }}>
+              ✅ Frontal · 😊 Cara centrada · 💡 Buena iluminación
+            </p>
           </div>
 
           <button
             onClick={handleStep0Submit}
-            disabled={loading || filledPhotos === 0}
+            disabled={loading || !imageFile}
             style={{
               padding: "14px 24px", borderRadius: "10px", border: "none",
               background: "var(--brand-primary)", color: "#fff",
-              fontWeight: 600, cursor: loading || filledPhotos === 0 ? "not-allowed" : "pointer",
-              opacity: loading || filledPhotos === 0 ? 0.6 : 1,
+              fontWeight: 600, cursor: loading || !imageFile ? "not-allowed" : "pointer",
+              opacity: loading || !imageFile ? 0.6 : 1,
               display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
             }}
           >
@@ -1019,6 +999,18 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
                   >
                     ← Ver opciones de upgrade
                   </button>
+                  <button
+                    onClick={() => setStep(3)}
+                    style={{
+                      width: "100%", padding: "11px 16px",
+                      borderRadius: "10px", border: "1px solid rgba(139,92,246,0.3)",
+                      background: "rgba(139,92,246,0.06)", color: "var(--neutral-300)",
+                      fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                    }}
+                  >
+                    🎁 Continuar con regalos y RSVP →
+                  </button>
                 </div>
               ) : (
                 /* ── Bloque de upsell principal ── */
@@ -1063,11 +1055,55 @@ export default function InvitacionWizardClient({ eventId, event, existingProject
                       Me quedo con la imagen
                     </button>
                   </div>
+
+                  {/* Continuar con el setup */}
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "12px", marginTop: "4px" }}>
+                    <button
+                      onClick={() => setStep(3)}
+                      style={{
+                        width: "100%", padding: "11px 16px",
+                        borderRadius: "10px", border: "1px solid rgba(139,92,246,0.3)",
+                        background: "rgba(139,92,246,0.06)", color: "var(--neutral-300)",
+                        fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                      }}
+                    >
+                      🎁 Continuar con regalos y RSVP →
+                    </button>
+                  </div>
                 </div>
               )}
             </>
           )}
         </div>
+      )}
+
+      {/* ── PASO 3: Regalos ────────────────────────────────────────────────── */}
+      {step === 3 && (
+        <WizardStepGifts
+          eventId={eventId}
+          celebrantName={event.celebrantName}
+          onNext={() => setStep(4)}
+          onSkip={() => setStep(4)}
+        />
+      )}
+
+      {/* ── PASO 4: RSVP ───────────────────────────────────────────────────── */}
+      {step === 4 && (
+        <WizardStepRsvp
+          eventId={eventId}
+          onNext={() => setStep(5)}
+          onSkip={() => setStep(5)}
+        />
+      )}
+
+      {/* ── PASO 5: Listo ──────────────────────────────────────────────────── */}
+      {step === 5 && (
+        <WizardStepComplete
+          eventId={eventId}
+          eventSlug={event.slug}
+          celebrantName={event.celebrantName}
+        />
       )}
 
       <style>{`

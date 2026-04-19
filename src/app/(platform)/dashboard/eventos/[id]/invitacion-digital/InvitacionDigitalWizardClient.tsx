@@ -19,8 +19,11 @@ import { toast } from "sonner";
 import {
   Check, ArrowLeft, ArrowRight, Loader2, Share2,
   Sparkles, Palette, MessageSquare, Image as ImageIcon,
-  CheckCircle, Copy, ExternalLink, RefreshCw, Upload, X,
+  CheckCircle, Copy, ExternalLink, RefreshCw, Upload, X, Gift,
 } from "lucide-react";
+import WizardStepGifts from "@/components/wizard/WizardStepGifts";
+import WizardStepRsvp from "@/components/wizard/WizardStepRsvp";
+import WizardStepComplete from "@/components/wizard/WizardStepComplete";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,7 @@ interface EventInfo {
   eventDate?: string | null;
   venue?: string | null;
   venueAddress?: string | null;
+  slug: string;
 }
 
 interface VideoProject {
@@ -58,6 +62,9 @@ const STEPS = [
   { label: "Diseño",  icon: Palette       },
   { label: "Magia",   icon: Sparkles      },
   { label: "¡Lista!", icon: CheckCircle   },
+  { label: "Regalos", icon: Gift          },
+  { label: "RSVP",    icon: Check         },
+  { label: "¡Listo!", icon: Share2        },
 ];
 
 const STYLES = [
@@ -112,11 +119,9 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
   const [step, setStep]               = useState(0);
   const [loading, setLoading]         = useState(false);
   const [project, setProject]         = useState<VideoProject | null>(null);
-  const [photoStoragePaths, setPhotoStoragePaths] = useState<string[]>([]);
-
-  // Step 0: Photos
-  const [imageFiles, setImageFiles]   = useState<(File | null)[]>([null, null, null]);
-  const fileInputRefs                  = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+  // Step 0: Foto frontal
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const fileInputRef                   = useRef<HTMLInputElement>(null);
 
   // Step 1: Style + message
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
@@ -181,17 +186,15 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
     return storagePath;
   }
 
-  // ── Paso 0: Subir fotos ──────────────────────────────────────────────────
+  // ── Paso 0: Subir foto ──────────────────────────────────────────────────
 
   async function handleStep0Submit() {
-    const filled = imageFiles.filter(Boolean) as File[];
-    if (filled.length === 0) {
-      toast.error("Sube al menos una foto del protagonista");
+    if (!imageFile) {
+      toast.error("Sube la foto frontal del protagonista");
       return;
     }
     setLoading(true);
     try {
-      // Create project if needed
       let proj = project;
       if (!proj) {
         toast.loading("El Genio está preparando tu proyecto…", { id: "step0" });
@@ -215,16 +218,10 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
         setProject(proj);
       }
 
-      // Upload photos
-      const paths: string[] = [];
-      for (let i = 0; i < filled.length; i++) {
-        toast.loading(`Subiendo foto ${i + 1} de ${filled.length}…`, { id: "step0" });
-        const path = await uploadAsset(proj!.id, "protagonist_image", filled[i]);
-        paths.push(path);
-      }
-      setPhotoStoragePaths(paths);
+      toast.loading("Subiendo foto…", { id: "step0" });
+      await uploadAsset(proj!.id, "protagonist_image", imageFile);
 
-      toast.success("¡Fotos listas! Ahora elige el estilo de tu invitación.", { id: "step0" });
+      toast.success("¡Foto lista! Ahora elige el estilo de tu invitación.", { id: "step0" });
       setStep(1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error inesperado", { id: "step0" });
@@ -274,7 +271,7 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
       const genRes = await fetch(`/api/video-projects/${project.id}/generate-image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ additionalImagePaths: photoStoragePaths }),
+        body: JSON.stringify({}),
       });
       if (!genRes.ok) {
         const e = await genRes.json().catch(() => ({}));
@@ -322,73 +319,71 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
   function renderStep0() {
     return (
       <div>
-        <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginBottom: "8px" }}>Sube las fotos del protagonista</h2>
+        <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 700, marginBottom: "8px" }}>Sube la foto del protagonista</h2>
         <p style={{ color: "var(--neutral-400)", fontSize: "0.9rem", marginBottom: "28px" }}>
-          El Genio usará estas fotos para crear la invitación. Cuantas más fotos, mejor resultado.
+          Una foto frontal clara con la cara bien visible. El Genio hará la magia.
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "28px" }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i}>
-              <input
-                ref={fileInputRefs[i]}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={e => {
-                  const file = e.target.files?.[0] ?? null;
-                  setImageFiles(prev => { const n = [...prev]; n[i] = file; return n; });
-                }}
-              />
-              <button
-                onClick={() => fileInputRefs[i].current?.click()}
-                style={{
-                  width: "100%", aspectRatio: "1", borderRadius: "14px",
-                  border: imageFiles[i] ? "2px solid var(--brand-primary)" : "2px dashed rgba(255,255,255,0.12)",
-                  background: imageFiles[i] ? "rgba(0,194,209,0.08)" : "var(--surface-card)",
-                  cursor: "pointer", position: "relative", overflow: "hidden",
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px",
-                  color: "var(--neutral-500)",
-                }}
-              >
-                {imageFiles[i] ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={URL.createObjectURL(imageFiles[i]!)} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                    <button
-                      onClick={e => { e.stopPropagation(); setImageFiles(prev => { const n = [...prev]; n[i] = null; return n; }); }}
-                      style={{ position: "absolute", top: "6px", right: "6px", width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "none", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={20} />
-                    <span style={{ fontSize: "0.75rem" }}>Foto {i + 1}{i === 0 ? " *" : ""}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          ))}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={e => {
+            const file = e.target.files?.[0] ?? null;
+            setImageFile(file);
+          }}
+        />
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              width: "160px", aspectRatio: "3/4", borderRadius: "14px",
+              border: imageFile ? "2px solid var(--brand-primary)" : "2px dashed rgba(255,255,255,0.12)",
+              background: imageFile ? "rgba(0,194,209,0.08)" : "var(--surface-card)",
+              cursor: "pointer", position: "relative", overflow: "hidden",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px",
+              color: "var(--neutral-500)",
+            }}
+          >
+            {imageFile ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={URL.createObjectURL(imageFile)} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                <button
+                  onClick={e => { e.stopPropagation(); setImageFile(null); }}
+                  style={{ position: "absolute", top: "6px", right: "6px", width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "none", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <X size={12} />
+                </button>
+              </>
+            ) : (
+              <>
+                <Upload size={24} />
+                <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>Subir foto</span>
+                <span style={{ fontSize: "0.7rem" }}>Frontal · Cara visible</span>
+              </>
+            )}
+          </button>
         </div>
 
         <div style={{ padding: "12px 16px", borderRadius: "10px", background: "rgba(0,194,209,0.07)", border: "1px solid rgba(0,194,209,0.15)", marginBottom: "24px" }}>
           <p style={{ fontSize: "0.8rem", color: "var(--neutral-400)", lineHeight: 1.55 }}>
-            <strong style={{ color: "#00C2D1" }}>Tip del Genio:</strong> Sube 2-3 fotos con buena iluminación y el protagonista bien visible. Mejor con fondo simple. Las fotos no se guardan una vez generada la invitación.
+            <strong style={{ color: "#00C2D1" }}>Tip del Genio:</strong> La foto frontal con buena iluminación es clave para que la invitación sea perfecta. Cara centrada, mirando a cámara, fondo simple. Las fotos no se guardan una vez generada la invitación.
           </p>
         </div>
 
         <button
           onClick={handleStep0Submit}
-          disabled={loading || imageFiles.every(f => !f)}
+          disabled={loading || !imageFile}
           style={{
             width: "100%", padding: "14px", borderRadius: "12px",
-            background: !imageFiles.every(f => !f) ? "var(--gradient-brand)" : "var(--surface-card)",
+            background: imageFile ? "var(--gradient-brand)" : "var(--surface-card)",
             border: "none", color: "white", fontWeight: 700, fontSize: "0.95rem",
-            cursor: loading || imageFiles.every(f => !f) ? "not-allowed" : "pointer",
+            cursor: loading || !imageFile ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-            opacity: loading || imageFiles.every(f => !f) ? 0.5 : 1, fontFamily: "inherit",
+            opacity: loading || !imageFile ? 0.5 : 1, fontFamily: "inherit",
           }}
         >
           {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <ArrowRight size={16} />}
@@ -592,6 +587,21 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
             <RefreshCw size={13} /> No me convence — regenerar ({project.maxRegenerations - project.regenerationCount} intentos restantes)
           </button>
         )}
+
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "16px", marginTop: "16px" }}>
+          <button
+            onClick={() => setStep(4)}
+            style={{
+              width: "100%", padding: "11px 16px",
+              borderRadius: "10px", border: "1px solid rgba(139,92,246,0.3)",
+              background: "rgba(139,92,246,0.06)", color: "var(--neutral-300)",
+              fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            }}
+          >
+            🎁 Continuar con regalos y RSVP →
+          </button>
+        </div>
       </div>
     );
   }
@@ -612,6 +622,28 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
+        {step === 4 && (
+          <WizardStepGifts
+            eventId={eventId}
+            celebrantName={event.celebrantName}
+            onNext={() => setStep(5)}
+            onSkip={() => setStep(5)}
+          />
+        )}
+        {step === 5 && (
+          <WizardStepRsvp
+            eventId={eventId}
+            onNext={() => setStep(6)}
+            onSkip={() => setStep(6)}
+          />
+        )}
+        {step === 6 && (
+          <WizardStepComplete
+            eventId={eventId}
+            eventSlug={event.slug}
+            celebrantName={event.celebrantName}
+          />
+        )}
       </div>
     </div>
   );

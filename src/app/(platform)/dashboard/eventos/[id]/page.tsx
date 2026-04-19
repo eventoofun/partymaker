@@ -8,15 +8,22 @@ import EventDashboardClient from "./EventDashboardClient";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ nuevo?: string; unlocked?: string }>;
 }
 
-export default async function EventDetailPage({ params }: Props) {
+export default async function EventDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const sp = await searchParams;
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
   const role = await getEventRole(id, userId);
   if (!role) notFound();
+
+  const currentUser = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { plan: true },
+  });
 
   const event = await db.query.events.findFirst({
     where: eq(events.id, id),
@@ -93,6 +100,9 @@ export default async function EventDetailPage({ params }: Props) {
       role={role as "owner" | "cohost" | "operator" | "viewer"}
       cohosts={validCohosts}
       publicUrl={publicUrl}
+      userPlan={currentUser?.plan ?? "free"}
+      eventPaid={event.paymentStatus === "paid"}
+      isNew={sp.nuevo === "1"}
     />
   );
 }

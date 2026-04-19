@@ -59,6 +59,7 @@ export default async function InvitacionesPage({ params }: Props) {
             type: event.type,
             eventDate: event.eventDate ?? null,
             venue: event.venue ?? null,
+            slug: event.slug,
           }}
           existingProject={visualProject}
         />
