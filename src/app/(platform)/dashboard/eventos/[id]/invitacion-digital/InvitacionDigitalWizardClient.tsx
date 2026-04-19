@@ -458,14 +458,14 @@ export default function InvitacionDigitalWizardClient({ eventId, event }: Props)
           </button>
           <button
             onClick={handleStep1Submit}
-            disabled={loading || !selectedStyle}
+            disabled={loading}
             style={{
               flex: 1, padding: "14px", borderRadius: "12px",
               background: selectedStyle ? "var(--gradient-brand)" : "var(--surface-card)",
               border: "none", color: "white", fontWeight: 700, fontSize: "0.95rem",
-              cursor: loading || !selectedStyle ? "not-allowed" : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-              opacity: loading || !selectedStyle ? 0.5 : 1,
+              opacity: loading ? 0.6 : 1,
             }}
           >
             {loading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={16} />}
